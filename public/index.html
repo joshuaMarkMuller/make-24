@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>24 — Maths Game</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <div class="logo"><span>24</span>Make 24!</div>
+  <div class="stats">
+    <div class="chip"><small>Round</small><b id="sRound">1</b></div>
+    <div class="chip"><small>Solved</small><b id="sSolved">0</b></div>
+    <div class="chip"><small>Revealed</small><b id="sSkipped">0</b></div>
+    <div class="chip"><small>Best</small><b id="sBest">–</b></div>
+  </div>
+  <div class="timer" id="timer">0.0s</div>
+</header>
+
+<main>
+  <div id="msg">Pick a card, an operation, then another card.</div>
+  <div class="cards" id="cards"></div>
+  <div class="ops" id="ops">
+    <button class="op" data-op="+">+</button>
+    <button class="op" data-op="−">−</button>
+    <button class="op" data-op="×">×</button>
+    <button class="op" data-op="÷">÷</button>
+  </div>
+  <div class="actions">
+    <button class="btn" id="undoBtn">↶ Undo</button>
+    <button class="btn" id="resetBtn">⟲ Reset</button>
+    <button class="btn danger" id="revealBtn">Reveal solution</button>
+    <button class="btn primary" id="nextBtn">Next puzzle →</button>
+  </div>
+</main>
+
+<details>
+  <summary>⚙ Settings &amp; teacher tools</summary>
+  <div class="settings">
+    <label>Timer
+      <select id="timerMode">
+        <option value="0">Stopwatch</option>
+        <option value="30">30 s countdown</option>
+        <option value="60">60 s countdown</option>
+        <option value="90">90 s countdown</option>
+        <option value="120">2 min countdown</option>
+      </select>
+    </label>
+    <label>Custom numbers
+      <input type="text" id="customNums" placeholder="e.g. 3 3 8 8">
+      <button class="btn" id="customBtn" style="padding:8px 14px">Play these</button>
+    </label>
+    <button class="btn" id="fsBtn" style="padding:8px 14px">⛶ Full screen</button>
+    <button class="btn" id="resetStats" style="padding:8px 14px">Reset scores</button>
+    <div class="help">Keyboard: <b>1–4</b> select cards · <b>+ − * /</b> operations · <b>Backspace</b> undo · <b>R</b> reset · <b>N</b> next puzzle · <b>S</b> reveal solution</div>
+  </div>
+</details>
+
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <h2 id="ovTitle">24!</h2>
+    <div class="big" id="ovExpr"></div>
+    <p id="ovSub"></p>
+    <div class="alts" id="ovAlts"></div>
+    <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <button class="btn" id="ovClose">Back to puzzle</button>
+      <button class="btn primary" id="ovNext">Next puzzle →</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/solver.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
