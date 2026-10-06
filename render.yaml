@@ -1,0 +1,10 @@
+# Render blueprint: one small paid web service running the Make 24 server.
+# In Render: New → Blueprint → pick this repository.
+services:
+  - type: web
+    name: make-24
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz

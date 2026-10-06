@@ -1,4 +1,4 @@
-/* host.js — the teacher's host screen (Stage 4). Everyone who makes 24 scores speed points;
+/* host.js — the teacher's host screen (Stage 5: each host screen opens its own lobby with a join code). Everyone who makes 24 scores speed points;
  * the first in each group gets a bonus. The host doesn't play: they choose
  * the match length, start each round and show the live races and scoreboard. */
 
@@ -21,13 +21,24 @@ function show(id){$(id).classList.add('show')}
 function hide(id){$(id).classList.remove('show')}
 
 /* ---------- Connecting as the host ---------- */
+// Each host screen runs its own lobby. The code and a secret key are kept for this tab,
+// so refreshing the page (or a dropped connection) takes back the same lobby.
+const LOBBY_KEY='make24-lobby';
+function savedLobby(){try{return JSON.parse(sessionStorage.getItem(LOBBY_KEY)||'null')}catch{return null}}
+function saveLobby(l){try{sessionStorage.setItem(LOBBY_KEY,JSON.stringify(l))}catch{}}
+function hosting(res){
+  if(!res.ok){$('hostErrorMsg').textContent=res.error;showView('hostError');$('hStatus').textContent='Not hosting';return}
+  H.code=res.code;saveLobby({code:res.code,key:res.key});
+  document.title=`Make 24 Host · ${res.code}`;
+  $('hStatus').textContent='Hosting';render();
+}
+function createLobby(){socket.emit('createLobby',hosting)}
 socket.on('connect',()=>{
-  socket.emit('host',res=>{
-    if(!res.ok){$('hostErrorMsg').textContent=res.error;showView('hostError');$('hStatus').textContent='Not hosting';return}
-    $('hStatus').textContent='Hosting';render();
-  });
+  const l=savedLobby();
+  if(l&&l.code&&l.key)socket.emit('reclaimHost',l,res=>res.ok?hosting(res):createLobby());
+  else createLobby();
 });
-socket.on('disconnect',()=>{$('hStatus').textContent='Connection lost. Refresh the page to host again.';clearInterval(H.tick)});
+socket.on('disconnect',()=>{$('hStatus').textContent='Connection lost. Reconnecting…';clearInterval(H.tick)});
 socket.on('notice',t=>{H.notice=t;H.noticeAt=Date.now();render()});
 // A player was bonked: play the shake + floating "BONK!" (it survives re-renders, see bonkBits)
 const BONK_MS=1400;
@@ -48,15 +59,24 @@ function showView(id){for(const v of ['hostError','hostLobby','hostGame'])$(v).h
 /* ---------- Drawing ---------- */
 function render(){
   const s=H.state;if(!s||s.hostId!==socket.id)return;
-  $('hPlayersPanel').textContent=`Players: ${s.players.length} of ${s.maxPlayers}`;
+  $('hPlayersPanel').textContent=`Lobby ${s.code} · Players: ${s.players.length} of ${s.maxPlayers}`;
   if(s.phase==='lobby'){renderLobby(s);return}
   renderGame(s);
+}
+
+// Where players should go. Online, that's this site's address; when the server runs on this
+// computer (localhost), it's the computer's Wi-Fi address(es) instead.
+function joinAddresses(s){
+  const local=/^(localhost|127\.|\[::1\])/.test(location.hostname);
+  const list=local&&s.joinUrls.length?s.joinUrls:[location.origin+'/'];
+  return list.map(u=>u.replace(/^https?:\/\//,'').replace(/\/$/,''));
 }
 
 function renderLobby(s){
   showView('hostLobby');clearInterval(H.tick);
   $('hStatus').textContent=`Waiting room · ${s.matchRounds}-round match · ${s.cardCount} cards`;
-  $('joinUrl').innerHTML=(s.joinUrls.length?s.joinUrls:[location.origin+'/race.html']).map(u=>`<span>${esc(u)}</span>`).join('');
+  $('lobbyCode').textContent=s.code;
+  $('joinUrl').innerHTML=joinAddresses(s).map(u=>`<span>${esc(u)}</span>`).join('');
   $('hCount').textContent=s.players.length?`${s.players.length} of ${s.maxPlayers} players have joined`:'No players yet';
   $('hPreview').textContent=describeGroups(s.players.length);
   renderPlayerList(s);

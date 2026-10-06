@@ -6,7 +6,7 @@
 | 2 | Head-to-head over Wi-Fi | Complete |
 | 3 | 10-round match | Complete |
 | 4 | Whole class (up to 24) | Complete |
-| 5 | Online with lobby codes | Not started |
+| 5 | Online with lobby codes | In progress |
 
 ## Stage 1: Projector game
 - [x] HTML application that works in my browser
@@ -33,7 +33,38 @@
 - [ ] The game is hosted online through a paid hosting service
 - [ ] Others join through a lobby code
 
+## Claude usage (energy and water)
+
+Estimated electricity and water used by Claude building this project so far. Updated with every roadmap change; last updated 7 October 2026.
+
+| | Estimate | Plausible range | For scale |
+|---|---|---|---|
+| **Energy** | **≈ 9.0 kWh** | 3.7–17.5 kWh | about 90 boils of a full electric kettle |
+| **Water** | **≈ 37 litres** | 4–72 litres | about one short shower |
+
+Where the energy went (approximate share of the estimate; water follows the same split):
+
+| Activity | Share | Energy |
+|---|---|---|
+| Reading and writing project files | 37% | ≈ 3.3 kWh |
+| Running code and tests | 23% | ≈ 2.1 kWh |
+| Claude's built-in instructions (re-read every step) | 19% | ≈ 1.7 kWh |
+| Conversation and replies | 13% | ≈ 1.2 kWh |
+| Syncing files to the computer | 8% | ≈ 0.7 kWh |
+
+**How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
+
+- **Energy:** the tokens Claude processed are counted from the session record and converted using climate scientist Zeke Hausfather's estimate for Claude Code (about 170 kWh, range 70–330 kWh, for 3.2 billion tokens).
+- **Water:** energy is converted using UC Riverside's research (Li, Yang, Islam and Ren), about 4.1 litres per kWh in total: water evaporated cooling the data centre plus water used by power stations generating the electricity (US average). The range runs from the low energy estimate with cooling water only to the high energy estimate with both.
+- **Split between activities:** weighted by cost, so re-reading earlier conversation counts for less than new reading or writing.
+
 ## Change log
+- **2026-10-07** Stage 5 built: lobby codes. The host screen creates a lobby with a 5-character code shown large for the projector; players go to the site's home page, type the code and their name, and join. One server runs many lobbies at once, kept completely separate, and a refreshed host screen takes back its own lobby. Inside a lobby the game plays exactly as in Stage 4. Added Render hosting settings (`render.yaml`) and instructions. Tested here with two lobbies playing at the same time. Waiting on the paid hosting set-up and a real test.
+- **2026-10-07** Water now shown as a single total.
+- **2026-10-07** Claude usage section now includes estimated water use (data-centre cooling and power generation) alongside energy.
+- **2026-10-07** Claude usage section now reported as energy (kWh) instead of tokens.
+- **2026-10-07** Claude usage section now updated with every roadmap change.
+- **2026-10-07** Added a Claude usage section with token totals for the project so far.
 - **2026-10-07** Stage 4 tested and working. Added criterion: the host doesn't play, but displays the scores and moderates the game. Stage 4 complete.
 - **2026-10-07** Out of time: when the 30 seconds run out, unfinished players' cards grey out and sink with a red "Out of time!" message, and the results wait a moment so it's seen. Players who end because the host pressed End Game are told so instead.
 - **2026-10-07** Host "Bonk" penalty for suspected cheating: takes 500 points (never below 0), with a shake and a floating "BONK!" on the scoreboard; the bonked player is told, and bonk counts appear on the scoreboard.

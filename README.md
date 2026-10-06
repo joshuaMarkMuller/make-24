@@ -17,13 +17,15 @@ Keyboard: `1`–`4` pick a card · `+ - * /` pick an operation · `Backspace` un
 
 Open `public/index.html` in any modern browser. It doesn't need a server or an internet connection. Extra keys: `N` or `F2` new puzzle · `S` reveal solution · `F1` help.
 
-## Class race (Stages 2–4)
+## Class race (Stages 2–5)
 
-Up to 24 players join from their own devices. Each round everyone is drawn into pairs, with one group of three when the number of players is odd (6 players → 3 pairs, 7 → 2 pairs and a three, 19 → 8 pairs and a three). Opponents change every round, avoiding repeat pairings where possible.
+The teacher opens the **host screen**, which creates a lobby with a five-character code (like `KQ7PX`) shown in large letters for the projector. Up to 24 players go to the game's website on their own devices, type the code and their name, and join that lobby. One server can run many lobbies at once, so several classes can play at the same time without seeing each other.
+
+Each round everyone is drawn into pairs, with one group of three when the number of players is odd (6 players → 3 pairs, 7 → 2 pairs and a three, 19 → 8 pairs and a three). Opponents change every round, avoiding repeat pairings where possible.
 
 Every group gets the same cards at the same moment: 4 or 5 of them (the host chooses), and every card must be used to make 24. Everyone who makes 24 within the time limit scores, and the first in each group wins the race; the server checks every answer, so a score can't be faked. A round lasts at most 30 seconds; anyone still working when time runs out sees their cards grey out under a big “Out of time!” before the results appear. Your opponents' cards are shown face down beside yours and animate as they play, without revealing their numbers.
 
-The teacher runs the game from the **host screen** (`/host.html`), which doesn't play: it shows the join address, lets you choose the number of cards (4 or 5) and the match length (1 to 10 rounds), and has the **Start Match** and **Next Round** buttons. During a round it shows the cards, the time left, every race and a live scoreboard.
+The host screen (`/host.html`) doesn't play: it shows the join address and lobby code, lets you choose the number of cards (4 or 5) and the match length (1 to 10 rounds), and has the **Start Match** and **Next Round** buttons. During a round it shows the cards, the time left, every race and a live scoreboard. If the host screen is refreshed or loses its connection, it takes back the same lobby.
 
 Host controls:
 
@@ -34,6 +36,19 @@ Host controls:
 When a match ends (after the last round or with End Game), the host screen switches to a results view: a large scoreboard with a podium for the top three underneath.
 
 **Scoring:** making 24 scores 1,000 points for an instant answer, dropping steadily to 500 at 30 seconds (about 17 points per second), plus a 100-point bonus for finishing first in your group. Players who don't make 24 in time, or give up, score nothing that round. Everyone's points go into one shared scoreboard of progress bars, shown after every round; the final one names the match winner. Players who join mid-round sit out until the next one.
+
+### Running it online (Stage 5)
+
+The game runs on [Render](https://render.com) as one small paid web service (the Starter instance). The repository includes a `render.yaml` blueprint with the settings.
+
+1. Sign in to Render with your GitHub account.
+2. Choose **New → Blueprint**, pick this repository and confirm. (Or **New → Web Service** with build command `npm install`, start command `npm start`, instance type **Starter**.)
+3. When it's live, Render gives the site an address like `https://make-24.onrender.com`.
+4. The teacher opens `…/host.html` on the projector computer; players open the address itself and type the lobby code.
+
+Every push to the repository's main branch redeploys the game automatically. Empty lobbies are cleared away after 10 minutes.
+
+### Running it on your own computer
 
 You need [Node.js](https://nodejs.org) (the LTS version) installed.
 
@@ -46,10 +61,10 @@ The server prints addresses like these:
 
 ```
 Host screen (open on your computer):  http://localhost:3000/host.html
-Players join at (same Wi-Fi):         http://192.168.1.20:3000/race.html
+Players join at (same Wi-Fi):         http://192.168.1.20:3000/
 ```
 
-Open the host screen on your computer (put it on the projector), and give players the Wi-Fi address it shows (or open several browser windows to try it alone). Everyone types a name; you press **Start Match** on the host screen. Press `Ctrl+C` in the terminal to stop the server.
+Open the host screen on your computer and give players the Wi-Fi address and lobby code it shows (or open several browser windows to try it alone). Press `Ctrl+C` in the terminal to stop the server.
 
 ## Project structure
 
@@ -57,8 +72,8 @@ Open the host screen on your computer (put it on the projector), and give player
 make-24/
 ├── public/              Everything the browser loads
 │   ├── index.html       Stage 1 projector game
-│   ├── host.html        Host screen: join address, match settings, live races and scoreboard
-│   ├── race.html        Player screen: up to 24 players race in pairs
+│   ├── host.html        Host screen: lobby code, match settings, live races and scoreboard
+│   ├── race.html        Player screen (the site's home page): enter a lobby code and race
 │   ├── css/style.css
 │   └── js/
 │       ├── solver.js    Maths only: bracket-free solver and puzzle generator for 4 or 5 cards (shared with the server)
@@ -66,10 +81,12 @@ make-24/
 │       ├── host.js      Host screen (talks to the server)
 │       └── race.js      Player screen (talks to the server)
 ├── server/
-│   └── index.js         Race server: draws groups, deals puzzles, checks answers, runs matches and keeps score
+│   ├── index.js         Web server and lobby manager: creates lobby codes, lets players join by code
+│   └── room.js          One lobby's game: draws groups, deals puzzles, checks answers, runs matches and keeps score
 ├── docs/
 │   └── ROADMAP.md       Stages and success criteria
 ├── package.json
+├── render.yaml          Settings for hosting on Render
 ├── LICENSE
 └── README.md
 ```

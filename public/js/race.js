@@ -35,13 +35,26 @@ function describeGroups(n){
 function standings(s){return [...s.players].sort((a,b)=>b.points-a.points||b.wins-a.wins)}
 
 /* ---------- Joining ---------- */
+// The code can come from the link (?code=KQ7PX); name and code are remembered for a quick rejoin
+const cleanCode=c=>String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+try{
+  $('codeInput').value=cleanCode(new URLSearchParams(location.search).get('code')||sessionStorage.getItem('make24-code'));
+  $('nameInput').value=sessionStorage.getItem('make24-name')||'';
+}catch{}
+$('codeInput').oninput=()=>{const c=cleanCode($('codeInput').value);if($('codeInput').value!==c)$('codeInput').value=c};
 $('joinForm').onsubmit=e=>{
   e.preventDefault();
-  const name=$('nameInput').value.trim();
-  if(!name){$('joinMsg').textContent='Type your name first.';return}
-  socket.emit('join',name,res=>{
+  const code=cleanCode($('codeInput').value),name=$('nameInput').value.trim();
+  if(code.length!==5){$('joinMsg').textContent='Type the 5-character lobby code from the host\'s screen.';$('codeInput').focus();return}
+  if(!name){$('joinMsg').textContent='Type your name first.';$('nameInput').focus();return}
+  $('joinMsg').textContent='Joining…';
+  socket.emit('join',{code,name},res=>{
     if(!res.ok){$('joinMsg').textContent=res.error;return}
-    R.me=res.name;R.myId=res.id;$('youPanel').textContent='You: '+R.me;
+    $('joinMsg').textContent='';
+    R.me=res.name;R.myId=res.id;R.code=res.code;$('youPanel').textContent='You: '+R.me;
+    try{sessionStorage.setItem('make24-code',res.code);sessionStorage.setItem('make24-name',name)}catch{}
+    try{history.replaceState(null,'','?code='+res.code)}catch{}
+    document.title=`Make 24 Race · ${res.code}`;
     render();
   });
 };
@@ -121,7 +134,7 @@ function render(){
       const recent=R.notice&&Date.now()-R.noticeAt<8000?R.notice+' ':'';
       $('lobbyMsg').textContent=recent+(s.hostConnected
         ?'Waiting for the host to start the match.'
-        :'Waiting for the host screen to be opened.');
+        :'The host has disconnected. Waiting for them to come back…');
     }
     return;
   }
@@ -472,4 +485,4 @@ document.addEventListener('keydown',e=>{
   else if(k==='Backspace'){e.preventDefault();undo()}else if(k==='r'||k==='R')reset();
 });
 
-showScreen('joinPanel');$('nameInput').focus();
+showScreen('joinPanel');($('codeInput').value?$('nameInput'):$('codeInput')).focus();
