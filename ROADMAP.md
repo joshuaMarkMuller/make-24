@@ -3,8 +3,8 @@
 | Stage | Goal | Status |
 |---|---|---|
 | 1 | Projector game | Complete |
-| 2 | Head-to-head over Wi-Fi | In progress |
-| 3 | 10-round match | Not started |
+| 2 | Head-to-head over Wi-Fi | Complete |
+| 3 | 10-round match | In progress |
 | 4 | Whole class (up to 20) | Not started |
 | 5 | Online with lobby codes | Not started |
 
@@ -16,8 +16,8 @@
 - [x] Project is on a public GitHub repository
 
 ## Stage 2: Head-to-head over Wi-Fi
-- [ ] I can host the game over a Wi-Fi network and one other person can join and race me
-- [ ] The game says who finished first
+- [x] I can host the game over a Wi-Fi network and one other person can join and race me
+- [x] The game says who finished first
 
 ## Stage 3: 10-round match
 - [ ] Everything from Stage 2 still works
@@ -33,6 +33,10 @@
 - [ ] Others join through a lobby code
 
 ## Change log
+- **2026-10-06** Scoreboard redrawn as XP-style progress bars: the top score fills the bar and the others are scaled against it, so bar lengths show the gap. Bars grow and points count up after each round.
+- **2026-10-06** Race screen: the opponent's cards now appear face down beside yours and animate as they play (select, combine, undo, reset, give up, win) without showing their numbers. The table area also scrolls on small screens.
+- **2026-10-06** Stage 3 built: matches of 1–10 rounds (host chooses), speed-based points (500–1,000 per round win), scoreboard after every round and a final match result. Waiting on a real two-device test.
+- **2026-10-06** Stage 2 tested on real devices and working. Stage 2 complete.
 - **2026-10-06** Stage 2 built: Node.js race server (`server/index.js`) and race screen (`public/race.html`). Same puzzle for both players, server-checked answers, first to 24 wins. Waiting on a real two-device test.
 - **2026-10-06** All functionality confirmed working. Stage 1 complete.
 - **2026-10-06** No fractional cards (÷ must divide exactly). Puzzles are only dealt if they can be solved without brackets, and solutions are shown without brackets.

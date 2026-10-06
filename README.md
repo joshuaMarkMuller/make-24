@@ -17,9 +17,11 @@ Keyboard: `1`–`4` pick a card · `+ - * /` pick an operation · `Backspace` un
 
 Open `public/index.html` in any modern browser. It doesn't need a server or an internet connection. Extra keys: `N` or `F2` new puzzle · `S` reveal solution · `F1` help.
 
-## Two-player race (Stage 2)
+## Two-player race (Stages 2–3)
 
 Two players get the same four cards at the same moment. The first to make 24 wins the round. The server checks every answer, so a win can't be faked.
+
+A match is 1 to 10 rounds; the first player to join chooses the length in the waiting room. Winning a round scores up to 1,000 points (1,000 for an instant answer, dropping steadily to 500 at 60 seconds or slower). A scoreboard after every round shows points and rounds won, and the final scoreboard names the match winner.
 
 You need [Node.js](https://nodejs.org) (the LTS version) installed.
 
@@ -43,14 +45,14 @@ Open the first on your computer and the second on the other player's device (or 
 make-24/
 ├── public/              Everything the browser loads
 │   ├── index.html       Stage 1 projector game
-│   ├── race.html        Stage 2 two-player race
+│   ├── race.html        Two-player race with matches and a scoreboard
 │   ├── css/style.css
 │   └── js/
 │       ├── solver.js    Maths only: bracket-free solver and puzzle generator (shared with the server)
 │       ├── game.js      Projector game
 │       └── race.js      Race screen (talks to the server)
 ├── server/
-│   └── index.js         Race server: deals puzzles, checks answers, decides who won
+│   └── index.js         Race server: deals puzzles, checks answers, runs matches and keeps score
 ├── docs/
 │   └── ROADMAP.md       Stages and success criteria
 ├── package.json

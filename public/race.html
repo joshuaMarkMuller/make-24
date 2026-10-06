@@ -44,7 +44,7 @@
           <div class="dlg-icon">24</div>
           <div>
             <h2>Make 24 Race</h2>
-            <p>Two players get the same four cards. The first to make 24 wins the round.</p>
+            <p>Two players get the same four cards. The first to make 24 wins the round. Play a match of up to 10 rounds.</p>
             <label for="nameInput">Your name:</label>
             <div class="row"><input type="text" id="nameInput" maxlength="16" autocomplete="off" placeholder="e.g. Josh">
               <button class="xp-btn default" type="submit">Join</button></div>
@@ -60,6 +60,16 @@
       <div class="dialog-body">
         <h2 id="lobbyTitle">Waiting for players</h2>
         <ul class="players" id="playerList"></ul>
+        <div class="match-len">
+          <label for="roundsSel">Match length:</label>
+          <select id="roundsSel">
+            <option value="1">1 round</option><option value="2">2 rounds</option><option value="3">3 rounds</option>
+            <option value="4">4 rounds</option><option value="5" selected>5 rounds</option><option value="6">6 rounds</option>
+            <option value="7">7 rounds</option><option value="8">8 rounds</option><option value="9">9 rounds</option>
+            <option value="10">10 rounds</option>
+          </select>
+          <span class="hint-note" id="roundsNote"></span>
+        </div>
         <p id="lobbyMsg"></p>
         <div class="dialog-btns"><button class="xp-btn default" id="readyBtn">I'm Ready</button></div>
       </div>
@@ -71,7 +81,20 @@
     <!-- Board -->
     <section class="board" id="board" hidden>
       <div id="msg">Pick a card, an operation, then another card.</div>
-      <div class="cards" id="cards"></div>
+      <div class="play-row">
+        <div class="cards" id="cards"></div>
+        <!-- Opponent's board, face down: shows what they do but never their numbers -->
+        <aside class="opp-side" id="oppSide" aria-label="Opponent's cards">
+          <div class="opp-name" id="oppName">Opponent</div>
+          <div class="opp-cards" id="oppCards">
+            <div class="mini-slot"><div class="mini-card"></div></div>
+            <div class="mini-slot"><div class="mini-card"></div></div>
+            <div class="mini-slot"><div class="mini-card"></div></div>
+            <div class="mini-slot"><div class="mini-card"></div></div>
+          </div>
+          <div class="opp-status" id="oppStatus">Thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
+        </aside>
+      </div>
       <div class="ops">
         <button class="xp-btn op" data-op="+">+</button>
         <button class="xp-btn op" data-op="−">−</button>
@@ -91,6 +114,7 @@
     <span class="panel grow" id="status">Not connected</span>
     <span class="panel" id="youPanel">You: –</span>
     <span class="panel" id="oppPanel">Opponent: –</span>
+    <span class="panel" id="scorePanel">Score: –</span>
     <span class="panel" id="timer">Time: 0</span>
   </footer>
 </div>
@@ -108,7 +132,11 @@
           <p id="resSub"></p>
         </div>
       </div>
-      <div class="dialog-btns"><button class="xp-btn default" id="againBtn">Play Again</button></div>
+      <fieldset class="scoreboard">
+        <legend>Scoreboard</legend>
+        <div id="scoreRows"></div>
+      </fieldset>
+      <div class="dialog-btns"><span class="hint-note" id="againNote"></span><button class="xp-btn default" id="againBtn">Next Round</button></div>
     </div>
   </div>
 </div>
@@ -124,7 +152,9 @@
         <li>After a 3-second countdown you both get the same four cards.</li>
         <li>Click a card, an operation, then another card to combine them. Cards stay whole numbers.</li>
         <li>The first player whose last card is 24 wins the round.</li>
+        <li>A match is 1 to 10 rounds (the first player to join chooses). The scoreboard after each round shows who is winning.</li>
       </ol>
+      <p><b>Points:</b> winning a round scores up to 1,000 points. The faster you solve it, the more you score, and every win is worth at least 500.</p>
       <p>Stuck? <b>Give Up</b> lets your opponent keep going. If you both give up, the answer is shown.</p>
       <div class="dialog-btns"><button class="xp-btn default" data-close="helpDlg">OK</button></div>
     </div>

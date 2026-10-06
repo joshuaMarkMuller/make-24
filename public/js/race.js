@@ -1,4 +1,4 @@
-/* race.js — two-player race screen (Stage 2). Talks to server/index.js over Socket.IO. Needs solver.js. */
+/* race.js — two-player race screen with matches and a scoreboard (Stages 2–3). Talks to server/index.js over Socket.IO. Needs solver.js. */
 
 const $=id=>document.getElementById(id);
 const socket=io();
@@ -29,7 +29,12 @@ $('joinForm').onsubmit=e=>{
   });
 };
 $('readyBtn').onclick=()=>socket.emit('ready');
-$('againBtn').onclick=()=>{hide('resultDlg');stopCascade();socket.emit('ready')};
+$('againBtn').onclick=()=>{
+  stopCascade();
+  if(R.state&&R.state.phase==='final'){hide('resultDlg');socket.emit('ready');return} // new match → waiting room
+  socket.emit('ready');$('againBtn').disabled=true;
+};
+$('roundsSel').onchange=()=>socket.emit('setRounds',+$('roundsSel').value);
 
 /* ---------- Server updates ---------- */
 socket.on('connect',()=>{$('status').textContent='Connected'});
@@ -40,6 +45,7 @@ socket.on('round',r=>{
   // Same cards for both players; suits are just for looks
   R.nums=r.nums;R.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
   resetBoard();R.locked=true;hide('resultDlg');stopCascade();
+  O.seq=null;O.layout=[true,true,true,true];O.pending=null;buildOpp('deal');
   if(!R.me)return;
   showScreen('countdown');
   let n=Math.round(r.countdownMs/1000);
@@ -58,8 +64,10 @@ function render(){
   const s=R.state;if(!s)return;
   const me=s.players.find(p=>p.id===R.myId);
   const opp=s.players.find(p=>p.id!==R.myId);
-  $('status').textContent=s.round?`Round ${s.round}`:'Waiting room';
-  $('oppPanel').textContent='Opponent: '+(opp?opp.name+(s.phase==='playing'?(opp.gaveUp?' (gave up)':` (${opp.cardsLeft} card${opp.cardsLeft>1?'s':''} left)`):''):'–');
+  $('status').textContent=(s.phase==='lobby'||!s.matchRound)?`Waiting room · ${s.matchRounds}-round match`:`Round ${s.matchRound} of ${s.matchRounds}`;
+  $('scorePanel').textContent=me&&s.matchRound&&s.phase!=='lobby'?`Score: ${me.points.toLocaleString()}`+(opp?` – ${opp.points.toLocaleString()}`:''):'Score: –';
+  $('oppPanel').textContent='Opponent: '+(opp?opp.name:'–');
+  renderOpp(opp,s);
 
   if(!me){ // not joined yet
     showScreen('joinPanel');
@@ -76,6 +84,9 @@ function render(){
       list.appendChild(li);
     }
     $('lobbyTitle').textContent=s.players.length<2?'Waiting for an opponent':'Both players are here';
+    const host=s.players.find(p=>p.id===s.hostId),amHost=s.hostId===R.myId;
+    $('roundsSel').value=String(s.matchRounds);$('roundsSel').disabled=!amHost;
+    $('roundsNote').textContent=amHost?'You choose the match length.':`Chosen by ${host?host.name:'the host'}.`;
     $('readyBtn').disabled=me.ready;
     $('readyBtn').textContent=me.ready?'Waiting for opponent…':"I'm Ready";
     if(s.players.length<2)$('lobbyMsg').textContent=$('lobbyMsg').textContent||'Ask someone to open this page and join.';
@@ -83,26 +94,79 @@ function render(){
     else $('lobbyMsg').textContent='Press I\'m Ready when you\'re set.';
   }
   if(s.phase==='playing'&&me.gaveUp)setMsg('You gave up. Your opponent can still finish.','bad');
-  if(s.phase==='result'&&s.result&&R.shownResultRound!==s.round){R.shownResultRound=s.round;showResult(s.result)}
+  if((s.phase==='result'||s.phase==='final')&&s.result&&R.shownResultRound!==s.round){R.shownResultRound=s.round;showResult(s.result,s)}
+  if(s.phase==='result'){ // waiting for both players to press Next Round
+    const oppReady=opp&&opp.ready;
+    $('againBtn').disabled=me.ready;
+    if(me.ready)$('againNote').textContent=`Waiting for ${opp?opp.name:'your opponent'}…`;
+    else if(oppReady)$('againNote').textContent=`${opp.name} is ready for the next round.`;
+  }
 }
 
-function showResult(res){
+function showResult(res,s){
   R.locked=true;R.sel=null;R.op=null;stopTimer();
-  const won=res.winnerId===R.myId;
+  const won=res.winnerId===R.myId,final=s.phase==='final';
+  const roundName=`round ${s.matchRound}`;
+  let icon,title,expr,sub;
   if(res.winner){
-    $('resIcon').textContent=won?'★':'!';$('resIcon').classList.toggle('warn',!won);
-    $('resTitle').textContent=won?'You finished first!':`${res.winner} finished first`;
-    $('resExpr').textContent=`${res.expr} = 24`;
-    $('resSub').textContent=`${won?'You':res.winner} made 24 in ${res.time.toFixed(1)} seconds.`;
+    title=won?`You won ${roundName}!`:`${res.winner} won ${roundName}`;
+    expr=`${res.expr} = 24`;
+    sub=`${won?'You':res.winner} made 24 in ${res.time.toFixed(1)} seconds: +${res.points} points.`;
     setMsg(won?'You made 24 first!':`${res.winner} made 24 first.`,won?'good':'bad');
   }else{
-    $('resIcon').textContent='i';$('resIcon').classList.remove('warn');
-    $('resTitle').textContent='Nobody solved it';
-    $('resExpr').textContent=res.solution?`${res.solution} = 24`:'';
-    $('resSub').textContent='Both players gave up. Here is one answer.';
+    title=`Nobody won ${roundName}`;
+    expr=res.solution?`${res.solution} = 24`:'';
+    sub='Both players gave up, so no points this round. Here is one answer.';
   }
+  icon=won?'★':(res.winner?'!':'i');
+  // Scoreboard: most points first, then most rounds won
+  const rows=[...s.players].sort((a,b)=>b.points-a.points||b.wins-a.wins);
+  const top=rows[0],tie=rows.length>1&&rows[1].points===top.points&&rows[1].wins===top.wins;
+  if(final){
+    const meWin=!tie&&top.id===R.myId;
+    title=tie?"It's a draw!":(meWin?'You win the match!':`${top.name} wins the match!`);
+    icon=tie?'=':(meWin?'★':'!');
+    sub=`Last round: ${sub}`;
+  }
+  $('resIcon').textContent=icon;$('resIcon').classList.toggle('warn',icon==='!');
+  $('resTitle').textContent=title;$('resExpr').textContent=expr;$('resSub').textContent=sub;
+  // Scoreboard: one progress bar per player. The top score fills the bar; the
+  // others are scaled against it, so the bar lengths show the gap between players.
+  const max=Math.max(...rows.map(p=>p.points));
+  const pct=v=>max>0?(v/max)*100:0;
+  $('scoreRows').innerHTML=rows.map((p,i)=>{
+    const same=q=>q&&q.points===p.points&&q.wins===p.wins;
+    const rank=rows.findIndex(same)+1,tied=rows.filter(same).length>1;
+    const before=p.points-(p.gained||0);
+    return `<div class="sb-row${p.id===R.myId?' me':''}${i===0&&!tie&&max>0?' lead':''}">`+
+      `<span class="sb-rank">${tied?rank+'=':rank}</span>`+
+      `<span class="sb-name"><span class="sb-line"><b>${esc(p.name)}</b>${p.id===R.myId?' <span class="you">(you)</span>':''}</span><small>${p.wins} round${p.wins===1?'':'s'} won</small></span>`+
+      `<span class="sb-track"><span class="sb-fill" data-to="${pct(p.points)}" style="width:${pct(before)}%"></span></span>`+
+      `<span class="sb-pts"><span class="sb-num" data-from="${before}" data-to="${p.points}">${before}</span>`+
+      `${p.gained?`<span class="gain">+${p.gained}</span>`:''}</span></div>`;
+  }).join('');
+  const left=s.matchRounds-s.matchRound;
+  $('againBtn').textContent=final?'New Match':'Next Round';$('againBtn').disabled=false;
+  $('againNote').textContent=final?'Match over.':`${left} round${left>1?'s':''} to go.`;
   renderCards();
-  if(won)runCascade(()=>show('resultDlg'));else show('resultDlg');
+  const celebrate=final?(!tie&&top.id===R.myId):won;
+  const open=()=>{show('resultDlg');growScores()};
+  if(celebrate)runCascade(open);else open();
+}
+
+// Grow each scoreboard bar from its old length to its new one and count the points up
+function growScores(){
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,dur=reduce?0:900;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll('#scoreRows .sb-fill').forEach(f=>{f.style.transitionDuration=dur+'ms';f.style.width=f.dataset.to+'%'});
+  }));
+  const nums=[...document.querySelectorAll('#scoreRows .sb-num')],t0=performance.now();
+  const tick=now=>{
+    const k=dur?Math.min(1,(now-t0)/dur):1,e=1-Math.pow(1-k,3);
+    nums.forEach(n=>{const a=+n.dataset.from,b=+n.dataset.to;n.textContent=Math.round(a+(b-a)*e).toLocaleString()});
+    if(k<1)requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 /* ---------- Playing the cards ---------- */
@@ -136,9 +200,9 @@ function canPlay(){
 }
 function clickCard(i){
   if(!canPlay())return;
-  if(R.sel===null){R.sel=i;renderCards();return}
-  if(R.sel===i){R.sel=null;R.op=null;renderCards();return}
-  if(!R.op){R.sel=i;renderCards();return}
+  if(R.sel===null){R.sel=i;renderCards();sendProgress();return}
+  if(R.sel===i){R.sel=null;R.op=null;renderCards();sendProgress();return}
+  if(!R.op){R.sel=i;renderCards();sendProgress();return}
   const a=R.slots[R.sel],b=R.slots[i],op=R.op;
   let v;
   if(op==='+')v=a.v+b.v;else if(op==='−')v=a.v-b.v;else if(op==='×')v=a.v*b.v;
@@ -152,9 +216,11 @@ function clickCard(i){
   const L=a.prec<p?`(${a.e})`:a.e;
   const Rt=(b.prec<p||(b.prec===p&&(op==='−'||op==='÷')))?`(${b.e})`:b.e;
   R.slots[i]={v,e:`${L} ${op} ${Rt}`,prec:p,base:false,fresh:true,suit:b.suit};
+  const from=R.sel;
   R.slots[R.sel]=null;R.sel=i;R.op=null;
   const left=R.slots.filter(Boolean).length;
-  socket.emit('progress',left);
+  if(left===1)R.sel=null;
+  sendProgress({move:{a:from,b:i}});
   if(left===1){
     if(v===24){
       R.locked=true;R.sel=null;setMsg('Checking…');
@@ -164,9 +230,61 @@ function clickCard(i){
   renderCards();
 }
 function pickOp(op){if(!canPlay())return;if(R.sel===null){setMsg('Pick a card first.','bad');return}R.op=op;renderCards()}
-function undo(){if(!canPlay()||!R.history.length)return;R.slots=R.history.pop();R.moves.pop();R.sel=null;R.op=null;socket.emit('progress',R.slots.filter(Boolean).length);setMsg('Undone.');renderCards()}
-function reset(){if(!canPlay())return;resetBoard();socket.emit('progress',4);setMsg('Cards reset.');renderCards('deal')}
-function giveUp(){if(!canPlay())return;R.locked=true;R.sel=null;socket.emit('giveUp');setMsg('You gave up. Your opponent can still finish.','bad');renderCards()}
+function undo(){if(!canPlay()||!R.history.length)return;R.slots=R.history.pop();R.moves.pop();R.sel=null;R.op=null;sendProgress({kind:'undo'});setMsg('Undone.');renderCards()}
+function reset(){if(!canPlay())return;resetBoard();sendProgress({kind:'reset'});setMsg('Cards reset.');renderCards('deal')}
+function giveUp(){if(!canPlay())return;R.locked=true;R.sel=null;sendProgress();socket.emit('giveUp');setMsg('You gave up. Your opponent can still finish.','bad');renderCards()}
+
+/* ---------- Opponent's face-down cards ----------
+ * We only ever learn the shape of their board (which slots hold cards, which is
+ * selected, and each move), never the numbers.
+ */
+function sendProgress(extra){socket.emit('progress',{layout:R.slots.map(Boolean),sel:R.sel,...(extra||{})})}
+const O={seq:null,layout:[true,true,true,true],animating:false,pending:null};
+const miniCards=()=>[...document.querySelectorAll('#oppCards .mini-card')];
+function buildOpp(anim,popAt){
+  miniCards().forEach((c,i)=>{
+    c.className='mini-card'+(O.layout[i]?'':' gone')+(anim==='deal'&&O.layout[i]?' deal':'')+(popAt===i?' pop':'');
+    c.style.transform='';c.style.animationDelay=anim==='deal'?(i*0.07)+'s':'';
+  });
+}
+function renderOpp(opp,s){
+  const side=$('oppSide');
+  side.hidden=!opp;
+  if(!opp)return;
+  if(O.animating){O.pending=[opp,s];return}
+  $('oppName').textContent=opp.name;
+  side.classList.toggle('gave-up',!!opp.gaveUp);
+  const oppWon=s.result&&s.result.winnerId===opp.id&&(s.phase==='result'||s.phase==='final');
+  $('oppStatus').innerHTML=oppWon?'Made 24!':opp.gaveUp?'Gave up':(s.phase==='playing'?'Thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span>':'');
+  const layout=(opp.layout||[true,true,true,true]).map(Boolean);
+  if(O.seq!==opp.moveSeq){
+    const prevSeq=O.seq;O.seq=opp.moveSeq;
+    const m=opp.lastMove;
+    if(prevSeq!==null&&m&&m.kind==='move'&&O.layout[m.a]&&O.layout[m.b]){ // slide card a onto card b
+      const cards=miniCards(),ca=cards[m.a],cb=cards[m.b];
+      const ra=ca.getBoundingClientRect(),rb=cb.getBoundingClientRect();
+      ca.classList.remove('sel');cb.classList.remove('sel');ca.classList.add('moving');
+      O.animating=true;
+      requestAnimationFrame(()=>{ca.style.transform=`translate(${rb.left-ra.left}px,${rb.top-ra.top}px)`});
+      setTimeout(()=>{
+        O.animating=false;O.layout=layout;buildOpp(null,m.b);
+        const p=O.pending;O.pending=null;if(p)renderOpp(...p);else applySel(opp,oppWon,layout);
+      },matchMedia('(prefers-reduced-motion: reduce)').matches?0:340);
+      return;
+    }
+    // undo, reset or a fresh round: show the new shape, dealing in any card that came back
+    const back=layout.map((v,i)=>v&&!O.layout[i]);
+    O.layout=layout;buildOpp();
+    miniCards().forEach((c,i)=>{if(back[i])c.classList.add('deal')});
+  }
+  applySel(opp,oppWon,layout);
+}
+function applySel(opp,oppWon,layout){
+  miniCards().forEach((c,i)=>{
+    c.classList.toggle('sel',opp.sel===i&&!opp.gaveUp&&!oppWon);
+    c.classList.toggle('win',oppWon&&layout.filter(Boolean).length===1&&!!layout[i]);
+  });
+}
 
 /* ---------- Timer ---------- */
 function startTimer(){stopTimer();R.start=performance.now();const t=$('timer');
