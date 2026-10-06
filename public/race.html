@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Make 24 Race</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <span class="app-icon" aria-hidden="true"><i></i><i></i></span>
+    <span class="title">Make 24 Race</span>
+    <span class="caption-btns" aria-hidden="true">
+      <span class="cap">_</span><span class="cap">□</span><span class="cap close">×</span>
+    </span>
+  </div>
+
+  <nav class="menubar">
+    <div class="menu">
+      <button class="menu-title" data-menu="game"><u>G</u>ame</button>
+      <div class="menu-list">
+        <button data-act="undo"><span>Undo</span><kbd>Backspace</kbd></button>
+        <button data-act="reset"><span>Reset Cards</span><kbd>R</kbd></button>
+        <button data-act="giveUp"><span>Give Up This Round</span><kbd></kbd></button>
+        <hr>
+        <button data-act="fullscreen"><span>Full Screen</span><kbd></kbd></button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-title" data-menu="help"><u>H</u>elp</button>
+      <div class="menu-list">
+        <button data-act="howto"><span>How to Race</span><kbd>F1</kbd></button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="felt" id="felt">
+    <!-- Join -->
+    <section class="dialog felt-dialog" id="joinPanel">
+      <div class="titlebar small"><span class="title">Join the Race</span></div>
+      <form class="dialog-body" id="joinForm">
+        <div class="dialog-row">
+          <div class="dlg-icon">24</div>
+          <div>
+            <h2>Make 24 Race</h2>
+            <p>Two players get the same four cards. The first to make 24 wins the round.</p>
+            <label for="nameInput">Your name:</label>
+            <div class="row"><input type="text" id="nameInput" maxlength="16" autocomplete="off" placeholder="e.g. Josh">
+              <button class="xp-btn default" type="submit">Join</button></div>
+            <p class="hint" id="joinMsg"></p>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Lobby -->
+    <section class="dialog felt-dialog" id="lobbyPanel" hidden>
+      <div class="titlebar small"><span class="title">Waiting Room</span></div>
+      <div class="dialog-body">
+        <h2 id="lobbyTitle">Waiting for players</h2>
+        <ul class="players" id="playerList"></ul>
+        <p id="lobbyMsg"></p>
+        <div class="dialog-btns"><button class="xp-btn default" id="readyBtn">I'm Ready</button></div>
+      </div>
+    </section>
+
+    <!-- Countdown -->
+    <div class="countdown" id="countdown" hidden>3</div>
+
+    <!-- Board -->
+    <section class="board" id="board" hidden>
+      <div id="msg">Pick a card, an operation, then another card.</div>
+      <div class="cards" id="cards"></div>
+      <div class="ops">
+        <button class="xp-btn op" data-op="+">+</button>
+        <button class="xp-btn op" data-op="−">−</button>
+        <button class="xp-btn op" data-op="×">×</button>
+        <button class="xp-btn op" data-op="÷">÷</button>
+      </div>
+      <div class="actions">
+        <button class="xp-btn" id="undoBtn">Undo</button>
+        <button class="xp-btn" id="resetBtn">Reset</button>
+        <button class="xp-btn" id="giveUpBtn">Give Up</button>
+      </div>
+    </section>
+    <canvas id="cascade" aria-hidden="true"></canvas>
+  </main>
+
+  <footer class="statusbar">
+    <span class="panel grow" id="status">Not connected</span>
+    <span class="panel" id="youPanel">You: –</span>
+    <span class="panel" id="oppPanel">Opponent: –</span>
+    <span class="panel" id="timer">Time: 0</span>
+  </footer>
+</div>
+
+<!-- Result -->
+<div class="modal" id="resultDlg">
+  <div class="dialog" role="dialog" aria-labelledby="resTitle">
+    <div class="titlebar small"><span class="title">Make 24 Race</span></div>
+    <div class="dialog-body">
+      <div class="dialog-row">
+        <div class="dlg-icon" id="resIcon">★</div>
+        <div>
+          <h2 id="resTitle"></h2>
+          <div class="big" id="resExpr"></div>
+          <p id="resSub"></p>
+        </div>
+      </div>
+      <div class="dialog-btns"><button class="xp-btn default" id="againBtn">Play Again</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Help -->
+<div class="modal" id="helpDlg">
+  <div class="dialog" role="dialog" aria-labelledby="helpTitle">
+    <div class="titlebar small"><span class="title" id="helpTitle">How to Race</span>
+      <span class="caption-btns"><button class="cap close" data-close="helpDlg" aria-label="Close">×</button></span></div>
+    <div class="dialog-body">
+      <ol>
+        <li>Both players join and press <b>I'm Ready</b>.</li>
+        <li>After a 3-second countdown you both get the same four cards.</li>
+        <li>Click a card, an operation, then another card to combine them. Cards stay whole numbers.</li>
+        <li>The first player whose last card is 24 wins the round.</li>
+      </ol>
+      <p>Stuck? <b>Give Up</b> lets your opponent keep going. If you both give up, the answer is shown.</p>
+      <div class="dialog-btns"><button class="xp-btn default" data-close="helpDlg">OK</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/solver.js"></script>
+<script src="js/race.js"></script>
+</body>
+</html>

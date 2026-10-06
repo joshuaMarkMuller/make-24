@@ -8,6 +8,7 @@
   --card-font:"Times New Roman",Times,Georgia,serif;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;height:100%}
 body{background:#3a6ea5;font-family:var(--ui);font-size:13px;color:#000;user-select:none;overflow:hidden}
 
@@ -137,3 +138,17 @@ ol{margin:6px 0;padding-left:22px}
   .key{display:none}
 }
 @media (prefers-reduced-motion:reduce){.card.deal,.card.pop{animation:none}}
+
+/* ---------- Race screen (Stage 2) ---------- */
+.felt-dialog{position:relative;z-index:1}
+.felt-dialog h2{font-size:clamp(20px,2.4vw,28px)}
+.felt-dialog label{display:block;margin:10px 0 4px}
+.board{display:flex;flex-direction:column;align-items:center;gap:clamp(14px,3vh,30px);width:100%}
+.players{list-style:none;margin:10px 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.players li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 12px;background:#fff;border:1px solid #7f9db9;font-size:16px}
+.players li.empty{color:#888;font-style:italic;background:#f4f3ee}
+.players .tag{font-size:12px;font-weight:bold;padding:2px 8px;border-radius:3px;background:#ddd;color:#333}
+.players .tag.ready{background:#2e8b2e;color:#fff}
+.players .you{font-size:12px;color:#0046d5;margin-left:6px}
+.countdown{font:bold clamp(120px,22vw,260px)/1 var(--card-font);color:#fff;text-shadow:4px 6px 0 rgba(0,0,0,.35)}
+.countdown.go{color:#ffff66}
