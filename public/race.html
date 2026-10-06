@@ -44,7 +44,7 @@
           <div class="dlg-icon">24</div>
           <div>
             <h2>Make 24 Race</h2>
-            <p>Two players get the same four cards. The first to make 24 wins the round. Play a match of up to 10 rounds.</p>
+            <p>Up to 24 players race in pairs. Everyone gets the same cards (4 or 5, chosen by the host), and everyone who makes 24 in time scores points. The host runs the match and shows the scoreboard.</p>
             <label for="nameInput">Your name:</label>
             <div class="row"><input type="text" id="nameInput" maxlength="16" autocomplete="off" placeholder="e.g. Josh">
               <button class="xp-btn default" type="submit">Join</button></div>
@@ -59,6 +59,7 @@
       <div class="titlebar small"><span class="title">Waiting Room</span></div>
       <div class="dialog-body">
         <h2 id="lobbyTitle">Waiting for players</h2>
+        <p class="group-preview" id="groupPreview"></p>
         <ul class="players" id="playerList"></ul>
         <div class="match-len">
           <label for="roundsSel">Match length:</label>
@@ -71,7 +72,7 @@
           <span class="hint-note" id="roundsNote"></span>
         </div>
         <p id="lobbyMsg"></p>
-        <div class="dialog-btns"><button class="xp-btn default" id="readyBtn">I'm Ready</button></div>
+        <div class="dialog-btns"><button class="xp-btn default" id="startBtn">Start Match</button></div>
       </div>
     </section>
 
@@ -83,17 +84,8 @@
       <div id="msg">Pick a card, an operation, then another card.</div>
       <div class="play-row">
         <div class="cards" id="cards"></div>
-        <!-- Opponent's board, face down: shows what they do but never their numbers -->
-        <aside class="opp-side" id="oppSide" aria-label="Opponent's cards">
-          <div class="opp-name" id="oppName">Opponent</div>
-          <div class="opp-cards" id="oppCards">
-            <div class="mini-slot"><div class="mini-card"></div></div>
-            <div class="mini-slot"><div class="mini-card"></div></div>
-            <div class="mini-slot"><div class="mini-card"></div></div>
-            <div class="mini-slot"><div class="mini-card"></div></div>
-          </div>
-          <div class="opp-status" id="oppStatus">Thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
-        </aside>
+        <!-- Opponents' boards, face down: shows what they do but never their numbers -->
+        <div class="opp-col" id="oppSide" aria-label="Your opponents' cards"></div>
       </div>
       <div class="ops">
         <button class="xp-btn op" data-op="+">+</button>
@@ -113,7 +105,7 @@
   <footer class="statusbar">
     <span class="panel grow" id="status">Not connected</span>
     <span class="panel" id="youPanel">You: –</span>
-    <span class="panel" id="oppPanel">Opponent: –</span>
+    <span class="panel" id="oppPanel">Racing: –</span>
     <span class="panel" id="scorePanel">Score: –</span>
     <span class="panel" id="timer">Time: 0</span>
   </footer>
@@ -136,7 +128,7 @@
         <legend>Scoreboard</legend>
         <div id="scoreRows"></div>
       </fieldset>
-      <div class="dialog-btns"><span class="hint-note" id="againNote"></span><button class="xp-btn default" id="againBtn">Next Round</button></div>
+      <div class="dialog-btns"><span class="hint-note" id="againNote"></span><button class="xp-btn" id="lobbyBtn" hidden>Change Settings</button><button class="xp-btn default" id="againBtn">Next Round</button></div>
     </div>
   </div>
 </div>
@@ -148,14 +140,14 @@
       <span class="caption-btns"><button class="cap close" data-close="helpDlg" aria-label="Close">×</button></span></div>
     <div class="dialog-body">
       <ol>
-        <li>Both players join and press <b>I'm Ready</b>.</li>
-        <li>After a 3-second countdown you both get the same four cards.</li>
+        <li>Type your name and join. The host starts the match from their screen.</li>
+        <li>Each round you are paired with someone new. With an odd number of players, one group has three.</li>
+        <li>After a 3-second countdown every group gets the same cards: 4 or 5, chosen by the host. Use every card to make 24.</li>
         <li>Click a card, an operation, then another card to combine them. Cards stay whole numbers.</li>
-        <li>The first player whose last card is 24 wins the round.</li>
-        <li>A match is 1 to 10 rounds (the first player to join chooses). The scoreboard after each round shows who is winning.</li>
+        <li>When your last card is 24 you score points. Everyone in your group can score, and the first to finish wins the race. A round lasts at most 30 seconds.</li>
       </ol>
-      <p><b>Points:</b> winning a round scores up to 1,000 points. The faster you solve it, the more you score, and every win is worth at least 500.</p>
-      <p>Stuck? <b>Give Up</b> lets your opponent keep going. If you both give up, the answer is shown.</p>
+      <p><b>Points:</b> making 24 scores 1,000 points for an instant answer, dropping steadily to 500 at 30 seconds. Finishing first in your group adds a 100-point bonus. Everyone's points go into one scoreboard.</p>
+      <p>Stuck? <b>Give Up</b> ends your round; your opponents can keep going.</p>
       <div class="dialog-btns"><button class="xp-btn default" data-close="helpDlg">OK</button></div>
     </div>
   </div>

@@ -1,6 +1,6 @@
 {
   "name": "make-24",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Classroom maths game: combine four numbers with + − × ÷ to make 24. Race other players in real time.",
   "main": "server/index.js",
   "scripts": {

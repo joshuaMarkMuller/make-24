@@ -16,18 +16,18 @@ function apply(op,a,b){
 const is24=v=>v.n===24&&v.d===1;
 
 /* ---------- Solver: bracket-free, whole-number solutions only ----------
- * Tries every order of the four numbers with every choice of three operations,
- * written in one line with no brackets (e.g. 8 × 3 + 2 − 2) and worked out with
- * the normal order of operations: × and ÷ left to right first, then + and −.
- * A solution only counts if every step gives a whole number, so it can always
- * be played with the cards (no fractional cards).
+ * Tries every order of the numbers (4 or 5 of them) with every choice of
+ * operations between them, written in one line with no brackets (e.g. 8 × 3 + 2 − 2)
+ * and worked out with the normal order of operations: × and ÷ left to right
+ * first, then + and −. A solution only counts if every step gives a whole number,
+ * so it can always be played with the cards (no fractional cards).
  */
 const OPS=['+','−','×','÷'];
 function evalNoBrackets(nums,ops){
   // Pass 1: × and ÷ left to right, building the terms that get added/subtracted
   const terms=[nums[0]],signs=['+'];
   let negSteps=false;
-  for(let i=0;i<3;i++){
+  for(let i=0;i<ops.length;i++){
     const op=ops[i],n=nums[i+1];
     if(op==='×')terms[terms.length-1]*=n;
     else if(op==='÷'){
@@ -41,38 +41,47 @@ function evalNoBrackets(nums,ops){
   for(let i=1;i<terms.length;i++){v=signs[i]==='+'?v+terms[i]:v-terms[i];if(v<0)negSteps=true}
   return{v,negSteps};
 }
+// Every distinct order of the numbers (repeated numbers aren't swapped with each other)
 function permutations(a){
-  if(a.length<=1)return[a];
-  const out=[];
-  a.forEach((x,i)=>permutations([...a.slice(0,i),...a.slice(i+1)]).forEach(p=>out.push([x,...p])));
+  const sorted=[...a].sort((x,y)=>x-y),used=new Array(a.length).fill(false),cur=[],out=[];
+  (function rec(){
+    if(cur.length===sorted.length){out.push([...cur]);return}
+    for(let i=0;i<sorted.length;i++){
+      if(used[i]||(i>0&&sorted[i]===sorted[i-1]&&!used[i-1]))continue;
+      used[i]=true;cur.push(sorted[i]);rec();cur.pop();used[i]=false;
+    }
+  })();
   return out;
 }
-function solve(nums){
-  const sols=new Map();
-  for(const p of permutations(nums))
-    for(const o1 of OPS)for(const o2 of OPS)for(const o3 of OPS){
-      const ops=[o1,o2,o3],r=evalNoBrackets(p,ops);
+// limit: stop after this many different solutions (keeps 5- and 6-card puzzles quick)
+function solve(nums,limit=Infinity){
+  const sols=new Map(),gaps=nums.length-1,combos=4**gaps,ops=new Array(gaps);
+  outer:for(const p of permutations(nums))
+    for(let k=0;k<combos;k++){
+      for(let i=0,x=k;i<gaps;i++,x>>=2)ops[i]=OPS[x&3];
+      const r=evalNoBrackets(p,ops);
       if(!r||r.v!==24)continue;
-      const e=`${p[0]} ${o1} ${p[1]} ${o2} ${p[2]} ${o3} ${p[3]}`;
-      if(!sols.has(e))sols.set(e,{e,neg:r.negSteps,div:ops.includes('÷')});
+      let e=String(p[0]);for(let i=0;i<gaps;i++)e+=` ${ops[i]} ${p[i+1]}`;
+      if(!sols.has(e)){sols.set(e,{e,neg:r.negSteps,div:ops.includes('÷')});if(sols.size>=limit)break outer}
     }
-  // Simplest first: no negative running totals, no division, then fewest + and −
+  // Simplest first: no negative running totals, no division
   return[...sols.values()].sort((p,q)=>(p.neg-q.neg)||(p.div-q.div)||p.e.localeCompare(q.e));
 }
 
-/* ---------- Puzzle generation: four numbers 1–9, always solvable without brackets ---------- */
+/* ---------- Puzzle generation: 4 or 5 numbers from 1–9, always solvable without brackets ---------- */
 const recent=[];
-function makePuzzle(){
+function makePuzzle(count=4){
   for(let t=0;t<20000;t++){
-    const nums=Array.from({length:4},()=>1+Math.floor(Math.random()*9));
+    const nums=Array.from({length:count},()=>1+Math.floor(Math.random()*9));
     const key=[...nums].sort((a,b)=>a-b).join(',');
     if(recent.includes(key))continue;
-    const sols=solve(nums); if(!sols.length)continue;
+    const sols=solve(nums,count>4?200:Infinity); if(!sols.length)continue;
     recent.push(key); if(recent.length>40)recent.shift();
     return{nums,sols};
   }
-  return{nums:[3,3,8,8],sols:solve([3,3,8,8])};
+  const fallback={4:[3,8,2,2],5:[3,8,2,2,1]}[count]||[3,8,2,2];
+  return{nums:fallback,sols:solve(fallback,200)};
 }
 
 // Export for Node (server) when available; in the browser these are globals.
-if (typeof module !== 'undefined') module.exports = { F, apply, is24, solve, makePuzzle };
+if (typeof module !== 'undefined') module.exports = { F, apply, is24, solve, makePuzzle, evalNoBrackets };

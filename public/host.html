@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Make 24 Host</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <span class="app-icon" aria-hidden="true"><i></i><i></i></span>
+    <span class="title">Make 24 Host</span>
+    <span class="caption-btns" aria-hidden="true">
+      <span class="cap">_</span><span class="cap">□</span><span class="cap close">×</span>
+    </span>
+  </div>
+
+  <nav class="menubar">
+    <div class="menu">
+      <button class="menu-title" data-menu="game"><u>G</u>ame</button>
+      <div class="menu-list">
+        <button data-act="fullscreen"><span>Full Screen</span><kbd></kbd></button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-title" data-menu="help"><u>H</u>elp</button>
+      <div class="menu-list">
+        <button data-act="howto"><span>How Hosting Works</span><kbd>F1</kbd></button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="felt host-felt" id="felt">
+    <!-- Can't host (another host screen is open) -->
+    <section class="dialog felt-dialog" id="hostError" hidden>
+      <div class="titlebar small"><span class="title">Make 24 Host</span></div>
+      <div class="dialog-body"><div class="dialog-row"><div class="dlg-icon warn">!</div>
+        <div><h2>Can't host here</h2><p id="hostErrorMsg"></p></div></div></div>
+    </section>
+
+    <!-- Waiting room -->
+    <section class="dialog felt-dialog host-lobby" id="hostLobby" hidden>
+      <div class="titlebar small"><span class="title">Waiting Room</span></div>
+      <div class="dialog-body">
+        <h2>Join the race</h2>
+        <p>On a phone, tablet or laptop connected to the same Wi-Fi, open:</p>
+        <div class="join-url" id="joinUrl">…</div>
+        <h3 id="hCount">No players yet</h3>
+        <p class="group-preview" id="hPreview"></p>
+        <p class="hint-note">Click ✎ next to a name to change it.</p>
+        <ul class="players" id="hPlayers"></ul>
+        <div class="match-len">
+          <label for="hCardCount">Cards:</label>
+          <select id="hCardCount">
+            <option value="4" selected>4 cards</option><option value="5">5 cards</option>
+          </select>
+          <span class="hint-note">Every card must be used to make 24.</span>
+        </div>
+        <div class="match-len">
+          <label for="hRounds">Match length:</label>
+          <select id="hRounds">
+            <option value="1">1 round</option><option value="2">2 rounds</option><option value="3">3 rounds</option>
+            <option value="4">4 rounds</option><option value="5" selected>5 rounds</option><option value="6">6 rounds</option>
+            <option value="7">7 rounds</option><option value="8">8 rounds</option><option value="9">9 rounds</option>
+            <option value="10">10 rounds</option>
+          </select>
+        </div>
+        <div class="dialog-btns"><span class="hint-note" id="hLobbyMsg"></span><button class="xp-btn default" id="hStart">Start Match</button></div>
+      </div>
+    </section>
+
+    <!-- Match in progress -->
+    <section class="host-game" id="hostGame" hidden>
+      <div class="host-top">
+        <div class="host-round" id="hRound">Round 1 of 5</div>
+        <div class="host-cards" id="hCards"></div>
+        <div class="host-clock" id="hClock">30</div>
+      </div>
+      <div class="host-banner" id="hBanner"></div>
+      <div class="host-cols">
+        <fieldset class="host-panel">
+          <legend>Races</legend>
+          <div class="race-list" id="hRaces"></div>
+        </fieldset>
+        <fieldset class="host-panel scoreboard">
+          <legend>Scoreboard</legend>
+          <div id="hScores"></div>
+        </fieldset>
+      </div>
+      <!-- Final results: top three on a podium -->
+      <div class="podium" id="hPodium" hidden aria-label="Top three players"></div>
+      <div class="actions host-actions">
+        <button class="xp-btn" id="hEnd" hidden>End Game</button>
+        <button class="xp-btn" id="hLobby" hidden>Change Settings</button>
+        <button class="xp-btn default" id="hNext" hidden>Next Round</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <span class="panel grow" id="hStatus">Connecting…</span>
+    <span class="panel" id="hPlayersPanel">Players: 0</span>
+    <span class="panel" id="hHostPanel">Host screen</span>
+  </footer>
+</div>
+
+<!-- Confirm ending the game -->
+<div class="modal" id="endDlg">
+  <div class="dialog" role="dialog" aria-labelledby="endTitle">
+    <div class="titlebar small"><span class="title" id="endTitle">End Game</span>
+      <span class="caption-btns"><button class="cap close" data-close="endDlg" aria-label="Close">×</button></span></div>
+    <div class="dialog-body">
+      <div class="dialog-row"><div class="dlg-icon warn">?</div>
+        <div><h2>End the game now?</h2>
+          <p id="endMsg">The scoreboard as it stands will be the final result.</p></div></div>
+      <div class="dialog-btns"><button class="xp-btn" data-close="endDlg">Cancel</button><button class="xp-btn default" id="endYes">End Game</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Help -->
+<div class="modal" id="helpDlg">
+  <div class="dialog" role="dialog" aria-labelledby="helpTitle">
+    <div class="titlebar small"><span class="title" id="helpTitle">How Hosting Works</span>
+      <span class="caption-btns"><button class="cap close" data-close="helpDlg" aria-label="Close">×</button></span></div>
+    <div class="dialog-body">
+      <ol>
+        <li>Show this screen on the projector. Players open the address shown and type their names.</li>
+        <li>Choose the match length and press <b>Start Match</b>.</li>
+        <li>Each round, players are drawn into pairs (one group of three when there's an odd number) and race the same cards (4 or 5, your choice). A round lasts at most 30 seconds.</li>
+        <li>Everyone who makes 24 scores 1,000 points for an instant answer, dropping to 500 at 30 seconds. The first in each group gets 100 bonus points.</li>
+        <li>Watch each race and the live scoreboard here, then press <b>Next Round</b>.</li>
+      </ol>
+      <p><b>Names:</b> in the waiting room, click ✎ next to a player's name to change it.</p>
+      <p><b>Bonk:</b> if you suspect someone is cheating, press <b>Bonk</b> next to their name on the scoreboard to take 500 points from them (never below 0). Everyone sees their row shake with a big “BONK!”.</p>
+      <p><b>End Game</b> stops the match at any point. Races still going stop, points already scored count, and the scoreboard at that moment is the final result.</p>
+      <p>The host screen doesn't play. Only one host screen can be open at a time.</p>
+      <div class="dialog-btns"><button class="xp-btn default" data-close="helpDlg">OK</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/host.js"></script>
+</body>
+</html>

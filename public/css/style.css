@@ -214,7 +214,223 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 @keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
 @media (max-width:800px){
   .play-row{grid-template-columns:minmax(0,1fr)}
-  .opp-side{order:-1;flex-direction:row;justify-self:center;padding:8px 12px}
+  .opp-col{order:-1;flex-direction:row;flex-wrap:wrap;justify-content:center;justify-self:center}
+  .opp-side{flex-direction:row;padding:8px 12px}
   .opp-cards{grid-template-columns:repeat(4,34px);gap:6px}
 }
 @media (prefers-reduced-motion:reduce){.mini-card,.mini-card.moving{transition:none}.mini-card.pop,.mini-card.deal{animation:none}}
+
+/* ---------- Whole class (Stage 4) ---------- */
+.opp-col{display:flex;flex-direction:column;gap:12px;align-items:stretch}
+.opp-col .opp-side{min-width:150px}
+.players{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;max-height:40vh;overflow-y:auto}
+.players li{padding:6px 10px;font-size:15px}
+.players .host{font-size:11px;font-weight:bold;color:#fff;background:#0046d5;border-radius:3px;padding:1px 6px}
+.group-preview{margin:4px 0 8px;color:#333}
+#scoreRows{max-height:min(46vh,420px);overflow-y:auto;padding-right:4px}
+#scoreRows.compact .sb-row{padding:1px 0;gap:8px}
+#scoreRows.compact .sb-name small{display:none}
+#scoreRows.compact .sb-track{height:14px}
+#scoreRows.compact .sb-pts{font-size:14px;flex-direction:row;justify-content:flex-end;gap:6px;align-items:baseline}
+.sb-row.me{background:#e4eeff;border-radius:4px}
+.round-groups{font-size:13px;color:#444;margin:6px 0 0}
+.waiting-note{color:#fff;font-size:clamp(14px,1.6vw,18px);text-align:center;text-shadow:1px 1px 0 #003300}
+
+/* ---------- Host screen ---------- */
+.host-felt{justify-content:safe center}
+.host-lobby{width:min(900px,100%)}
+.host-lobby h2{font-size:clamp(24px,3vw,36px)}
+.host-lobby h3{margin:16px 0 0;font-size:18px}
+.join-url{display:flex;flex-direction:column;gap:4px;margin:8px 0 4px;padding:12px 16px;background:#fff;border:1px solid #7f9db9;box-shadow:inset 1px 1px 0 #d0d0d0;
+  font:bold clamp(22px,3.4vw,42px) var(--ui);color:#0b3fa8;word-break:break-all;user-select:text}
+.host-game{display:flex;flex-direction:column;gap:14px;width:min(1400px,100%)}
+.host-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px}
+.host-round{color:#fff;font:bold clamp(20px,2.4vw,32px) var(--ui);text-shadow:1px 1px 0 #003300}
+.host-clock{justify-self:end;min-width:3ch;text-align:center;font:bold clamp(40px,6vw,80px)/1 var(--card-font);color:#fff;
+  background:rgba(0,0,0,.25);border:2px solid var(--felt-line);border-radius:12px;padding:6px 18px;font-variant-numeric:tabular-nums}
+.host-clock.warn{color:#ffd0d0;background:rgba(160,0,0,.35)}
+.host-cards{display:grid;grid-template-columns:repeat(4,clamp(64px,8vw,120px));gap:clamp(8px,1.2vw,16px)}
+.host-cards .card{cursor:default}
+.host-cards .card:hover{transform:none}
+.host-cards .val{font-size:clamp(34px,5vw,72px)}
+.host-cards .corner{font-size:clamp(11px,1.2vw,16px)}
+.host-cards .suit-big{font-size:clamp(14px,1.6vw,22px)}
+.host-banner{color:#ffff66;font:bold clamp(18px,2.2vw,30px) var(--ui);text-align:center;text-shadow:1px 1px 0 #003300,2px 2px 3px rgba(0,0,0,.4);min-height:1.3em}
+.host-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;align-items:start}
+.host-panel{background:var(--chrome);border:1px solid #fff;border-radius:6px;box-shadow:0 0 0 1px #8a8678,3px 4px 10px rgba(0,0,0,.35);margin:0;padding:8px 14px 12px;min-width:0}
+.host-panel legend{background:var(--chrome);padding:2px 8px;border:1px solid #aca899;border-radius:3px;color:#0046d5;font-weight:bold}
+.race-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;max-height:52vh;overflow-y:auto}
+.race{background:#fff;border:1px solid #7f9db9;border-radius:4px;padding:7px 10px;display:flex;flex-direction:column;gap:3px}
+.race.done{border-color:#2e8b2e;background:#effbea}
+.race.none{background:#f4f3ee;color:#777}
+.racers{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:15px}
+.racer{font-weight:bold}
+.racer.won{color:#1d7a1d}
+.racer.out{color:#999;text-decoration:line-through}
+.racer .pips{font-size:9px;letter-spacing:1px;color:#1d44b8;margin-left:4px;vertical-align:2px}
+.vs{color:#888;font-size:12px}
+.race-status{font-size:13px;color:#444}
+.race-status .dots i{font-style:normal;animation:blink 1.2s infinite both}
+.race-status .dots i:nth-child(2){animation-delay:.2s}.race-status .dots i:nth-child(3){animation-delay:.4s}
+#hScores{max-height:52vh;overflow-y:auto;padding-right:4px}
+#hScores .sb-pts{flex-direction:row;justify-content:flex-end;align-items:center;gap:6px}
+#hScores .tag{font-size:11px;padding:1px 6px;border-radius:3px;background:#2e8b2e;color:#fff;font-weight:bold}
+#hScores.compact .sb-row{padding:1px 0}
+#hScores.compact .sb-name small{display:none}
+#hScores.compact .sb-track{height:14px}
+.host-actions{justify-content:flex-end}
+.host-actions .xp-btn{font-size:clamp(15px,1.5vw,20px);padding:8px 22px}
+@media (max-width:900px){.host-cols{grid-template-columns:minmax(0,1fr)}.host-top{grid-template-columns:1fr auto}.host-cards{grid-column:1/-1;grid-row:2;justify-self:center}}
+#hScores .sb-row{grid-template-columns:28px minmax(90px,170px) minmax(0,1fr) 130px}
+/* Host race cards: one row per player */
+.race{gap:2px}
+.racer-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:15px}
+.racer-row.solved .racer{color:#1d7a1d}
+.racer-row.out .racer{color:#999;text-decoration:line-through}
+.racer-detail{font-size:12px;color:#555;white-space:nowrap;font-variant-numeric:tabular-nums}
+/* Host: rename players in the waiting room */
+#hPlayers li{display:flex;justify-content:space-between;align-items:center;gap:6px}
+#hPlayers .pname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.edit-name{border:1px solid transparent;background:none;cursor:pointer;font-size:15px;line-height:1;padding:2px 5px;border-radius:3px;color:#0046d5}
+.edit-name:hover,.edit-name:focus-visible{border-color:#7f9db9;background:#eef3ff;outline:none}
+#hPlayers li.editing{grid-column:span 2;padding:4px 6px}
+.rename{display:flex;gap:6px;width:100%}
+.rename input{flex:1;min-width:0;width:auto}
+.rename .xp-btn{min-width:0;padding:3px 10px}
+
+/* ---------- Host final results: big scoreboard + podium ---------- */
+.host-game.final .host-top{display:none}
+.host-game.final .host-cols{grid-template-columns:minmax(0,1fr)}
+.host-game.final .host-panel:not(.scoreboard){display:none}
+.host-game.final .host-panel.scoreboard{width:min(1100px,100%);justify-self:center}
+.host-game.final #hScores{max-height:min(44vh,520px)}
+.host-game.final #hScores .sb-row{grid-template-columns:44px minmax(140px,260px) minmax(0,1fr) 170px;padding:5px 0}
+.host-game.final #hScores .sb-rank{font-size:20px}
+.host-game.final #hScores .sb-name b{font-size:20px}
+.host-game.final #hScores .sb-track{height:26px}
+.host-game.final #hScores .sb-pts{font-size:22px}
+.host-game.final #hScores.compact .sb-row{padding:2px 0}
+.host-game.final #hScores.compact .sb-name b{font-size:17px}
+.host-game.final #hScores.compact .sb-track{height:18px}
+.host-game.final #hScores.compact .sb-pts{font-size:18px}
+.host-game.final .host-banner{font-size:clamp(24px,3vw,40px)}
+
+.podium{display:flex;justify-content:center;align-items:flex-end;gap:clamp(8px,1.2vw,16px);margin-top:4px}
+.step{display:flex;flex-direction:column;align-items:center;width:clamp(120px,14vw,200px)}
+.step.empty{visibility:hidden}
+.step-name{color:#fff;font:bold clamp(16px,1.8vw,24px) var(--ui);text-shadow:1px 1px 0 #003300,2px 2px 3px rgba(0,0,0,.4);
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step-score{color:#ffff66;font:bold clamp(14px,1.4vw,19px) var(--ui);text-shadow:1px 1px 0 #003300;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.step-block{width:100%;display:flex;justify-content:center;align-items:flex-start;padding-top:8px;border:1px solid #000;border-bottom:0;border-radius:6px 6px 0 0;
+  box-shadow:inset 2px 2px 0 rgba(255,255,255,.6),inset -2px 0 0 rgba(0,0,0,.2),3px 0 6px rgba(0,0,0,.3);
+  transform-origin:bottom;animation:rise .6s cubic-bezier(.2,.8,.3,1) backwards}
+.step-place{font:bold clamp(22px,2.6vw,36px) var(--card-font);color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.5)}
+.step-1 .step-block{height:clamp(90px,13vh,140px);animation-delay:.9s}
+.step-2 .step-block{height:clamp(66px,9.5vh,104px);animation-delay:.5s}
+.step-3 .step-block{height:clamp(48px,7vh,76px);animation-delay:.1s}
+.step-1 .step-name,.step-1 .step-score{animation:fadeUp .4s 1.3s backwards}
+.step-2 .step-name,.step-2 .step-score{animation:fadeUp .4s .9s backwards}
+.step-3 .step-name,.step-3 .step-score{animation:fadeUp .4s .5s backwards}
+.place-1 .step-block{background:linear-gradient(180deg,#ffe680,#e0b000 55%,#b38600)}
+.place-2 .step-block{background:linear-gradient(180deg,#f2f2f2,#bfc4cc 55%,#8e949e)}
+.place-3 .step-block{background:linear-gradient(180deg,#f3c79a,#c9813f 55%,#985a22)}
+@keyframes rise{from{transform:scaleY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}}
+@media (prefers-reduced-motion:reduce){.step-block,.step-name,.step-score{animation:none}}
+.host-game.final{position:relative}
+.host-game.final .host-actions{position:absolute;right:0;bottom:0;flex-direction:column;align-items:stretch}
+.host-game.final #hScores .tag{display:none}
+.host-game.final #hScores{max-height:max(200px,calc(100vh - 470px))}
+
+/* Player screen: make the opponent's name stand out */
+.opp-col .opp-side{min-width:180px;gap:8px}
+.opp-label{color:#cfeccf;font:bold 12px var(--ui);text-transform:uppercase;letter-spacing:.08em}
+.opp-col .opp-name{font-size:clamp(22px,2.4vw,32px);max-width:220px;line-height:1.1;color:#ffff66}
+@media (max-width:800px){
+  .opp-col .opp-side{min-width:0;flex-wrap:wrap;justify-content:center}
+  .opp-col .opp-label{width:100%;text-align:center}
+  .opp-col .opp-name{font-size:20px}
+}
+.opp-col.multi .opp-side{padding:8px 12px;gap:5px}
+.opp-col.multi .opp-cards{grid-template-columns:repeat(2,clamp(36px,3.4vw,48px));gap:7px}
+.opp-col.multi .opp-name{font-size:clamp(20px,2vw,28px)}
+.opp-col.multi .opp-cards{grid-template-columns:repeat(4,clamp(30px,2.6vw,40px));gap:6px}
+
+/* ---------- 5-card games ---------- */
+.cards.n5{grid-template-columns:repeat(5,minmax(0,1fr));width:min(1100px,100%)}
+.cards.n5 .val{font-size:clamp(40px,7vw,104px)}
+.cards.n5 .expr{font-size:clamp(11px,1.1vw,15px);padding:0 4px}
+.opp-cards.n5{grid-template-columns:repeat(3,clamp(36px,3.6vw,52px))}
+.opp-col.multi .opp-cards.n5{grid-template-columns:repeat(5,clamp(24px,2.1vw,34px));gap:5px}
+@media (max-width:640px){
+  .cards.n5{grid-template-columns:repeat(3,minmax(0,1fr));width:min(400px,100%)}
+}
+@media (max-width:800px){
+  .opp-col .opp-cards.n5{grid-template-columns:repeat(5,28px);gap:4px}
+}
+
+/* ---------- Bonk: host penalty for suspected cheating ---------- */
+.sb-row{position:relative}
+.sb-row.bonked .sb-name,.sb-row.bonked .sb-track{animation:bonkShake .6s ease-in-out}
+.sb-row.bonked .sb-name b{color:#c00000}
+@keyframes bonkShake{
+  0%,100%{transform:translate(0,0) rotate(0)}
+  12%{transform:translate(-7px,1px) rotate(-1.5deg)}
+  25%{transform:translate(6px,-1px) rotate(1.2deg)}
+  38%{transform:translate(-5px,1px) rotate(-1deg)}
+  52%{transform:translate(4px,0) rotate(.8deg)}
+  66%{transform:translate(-3px,0) rotate(-.5deg)}
+  80%{transform:translate(2px,0)}
+}
+/* "BONK!" starts over the name, then drifts up and off to the left as it fades */
+.bonk-pop{position:absolute;left:36px;top:50%;z-index:3;pointer-events:none;white-space:nowrap;
+  font:900 clamp(20px,2.2vw,30px)/1 Impact,"Arial Black","Segoe UI Black",var(--ui);letter-spacing:.04em;color:#e01818;
+  -webkit-text-stroke:1.5px #fff;paint-order:stroke fill;text-shadow:2px 2px 0 rgba(0,0,0,.35);
+  animation:bonkFloat 1.4s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes bonkFloat{
+  0%{transform:translate(10px,-50%) scale(.6) rotate(-8deg);opacity:0}
+  12%{transform:translate(0,-50%) scale(1.25) rotate(-8deg);opacity:1}
+  30%{transform:translate(-6px,-60%) scale(1) rotate(-10deg);opacity:1}
+  100%{transform:translate(-70px,-140%) scale(.9) rotate(-14deg);opacity:0}
+}
+.bonk-btn{margin-left:8px;font:bold 11px var(--ui);color:#fff;cursor:pointer;padding:2px 7px;border-radius:3px;
+  border:1px solid #7a0000;background:linear-gradient(180deg,#f06a5a,#c8301e);box-shadow:inset 0 1px 0 rgba(255,255,255,.4);opacity:.55}
+.sb-row:hover .bonk-btn,.bonk-btn:focus-visible{opacity:1}
+.bonk-btn:hover{background:linear-gradient(180deg,#ff8070,#d83a26)}
+.bonk-btn:active{transform:translateY(1px)}
+.bonk-btn:focus-visible{outline:2px solid #f8b636;outline-offset:1px}
+#hScores .sb-row{grid-template-columns:28px minmax(90px,170px) minmax(0,1fr) 190px}
+.host-game.final #hScores .sb-row{grid-template-columns:44px minmax(140px,260px) minmax(0,1fr) 220px}
+/* Player's own message when bonked */
+#msg.bonk-msg{animation:bonkShake .6s ease-in-out}
+@media (prefers-reduced-motion:reduce){.sb-row.bonked .sb-name,.sb-row.bonked .sb-track,#msg.bonk-msg{animation:none}.bonk-pop{animation-duration:.01s}}
+#hScores .tag.minus{background:#c8201e}
+.host-game.final #hScores .tag.minus{display:inline-block}
+.sb-pts .gain.minus{color:#c8201e;font-weight:bold}
+
+/* ---------- Out of time: cards fade to grey and sink, message pops in red ---------- */
+.cards.timeout .card{cursor:default;animation:outOfTime .8s cubic-bezier(.3,.7,.4,1) forwards}
+.cards.timeout .card:hover{transform:none}
+.cards.timeout .slot:nth-child(1) .card{--tilt:-3deg}
+.cards.timeout .slot:nth-child(2) .card{--tilt:2deg}
+.cards.timeout .slot:nth-child(3) .card{--tilt:-1.5deg}
+.cards.timeout .slot:nth-child(4) .card{--tilt:2.5deg}
+.cards.timeout .slot:nth-child(5) .card{--tilt:-2deg}
+@keyframes outOfTime{
+  0%{filter:none;transform:none}
+  100%{filter:grayscale(1) brightness(.55) contrast(.9);transform:translateY(10px) rotate(var(--tilt,0deg))}
+}
+#msg.timeout{color:#ff5a4f;font-size:clamp(30px,4.4vw,58px);letter-spacing:.02em;
+  text-shadow:2px 2px 0 #3a0000,0 0 18px rgba(255,60,40,.45);animation:timeoutPop .7s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes timeoutPop{
+  0%{transform:scale(1.8);opacity:0}
+  40%{transform:scale(1);opacity:1}
+  55%{transform:translateX(-8px)}
+  70%{transform:translateX(7px)}
+  85%{transform:translateX(-4px)}
+  100%{transform:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .cards.timeout .card{animation:none;filter:grayscale(1) brightness(.55)}
+  #msg.timeout{animation:none}
+}

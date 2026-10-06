@@ -3,3 +3,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+
+# Preview images saved by the Claude app (not part of the project)
+Claude outputs/
