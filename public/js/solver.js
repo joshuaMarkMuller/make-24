@@ -1,5 +1,5 @@
 /*
- * solver.js — exact fraction arithmetic, 24 solver and puzzle generator.
+ * solver.js — card arithmetic, bracket-free 24 solver and puzzle generator.
  * No browser code here, so the multiplayer server (Stage 2+) can reuse it in Node.
  */
 /* ---------- Exact fraction arithmetic ---------- */
@@ -15,34 +15,52 @@ function apply(op,a,b){
 }
 const is24=v=>v.n===24&&v.d===1;
 
-/* ---------- Solver: finds every distinct solution ---------- */
+/* ---------- Solver: bracket-free, whole-number solutions only ----------
+ * Tries every order of the four numbers with every choice of three operations,
+ * written in one line with no brackets (e.g. 8 × 3 + 2 − 2) and worked out with
+ * the normal order of operations: × and ÷ left to right first, then + and −.
+ * A solution only counts if every step gives a whole number, so it can always
+ * be played with the cards (no fractional cards).
+ */
+const OPS=['+','−','×','÷'];
+function evalNoBrackets(nums,ops){
+  // Pass 1: × and ÷ left to right, building the terms that get added/subtracted
+  const terms=[nums[0]],signs=['+'];
+  let negSteps=false;
+  for(let i=0;i<3;i++){
+    const op=ops[i],n=nums[i+1];
+    if(op==='×')terms[terms.length-1]*=n;
+    else if(op==='÷'){
+      const t=terms[terms.length-1];
+      if(n===0||t%n!==0)return null; // would make a fraction
+      terms[terms.length-1]=t/n;
+    }else{terms.push(n);signs.push(op)}
+  }
+  // Pass 2: + and − left to right
+  let v=terms[0];
+  for(let i=1;i<terms.length;i++){v=signs[i]==='+'?v+terms[i]:v-terms[i];if(v<0)negSteps=true}
+  return{v,negSteps};
+}
+function permutations(a){
+  if(a.length<=1)return[a];
+  const out=[];
+  a.forEach((x,i)=>permutations([...a.slice(0,i),...a.slice(i+1)]).forEach(p=>out.push([x,...p])));
+  return out;
+}
 function solve(nums){
   const sols=new Map();
-  function rec(items){
-    if(items.length===1){
-      const it=items[0];
-      if(is24(it.v)){const e=it.e.startsWith('(')?it.e.slice(1,-1):it.e;
-        if(!sols.has(e))sols.set(e,{div:it.div,frac:it.frac});}
-      return;
+  for(const p of permutations(nums))
+    for(const o1 of OPS)for(const o2 of OPS)for(const o3 of OPS){
+      const ops=[o1,o2,o3],r=evalNoBrackets(p,ops);
+      if(!r||r.v!==24)continue;
+      const e=`${p[0]} ${o1} ${p[1]} ${o2} ${p[2]} ${o3} ${p[3]}`;
+      if(!sols.has(e))sols.set(e,{e,neg:r.negSteps,div:ops.includes('÷')});
     }
-    for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++){
-      const a=items[i],b=items[j],rest=items.filter((_,k)=>k!==i&&k!==j);
-      const tries=[[a,'+',b],[a,'−',b],[b,'−',a],[a,'×',b],[a,'÷',b],[b,'÷',a]];
-      for(const [x,op,y] of tries){
-        const v=apply(op,x.v,y.v); if(!v)continue;
-        let l=x.e,r=y.e;
-        if((op==='+'||op==='×')&&l>r)[l,r]=[r,l]; // canonical order for commutative ops
-        rec([...rest,{v,e:`(${l} ${op} ${r})`,div:x.div||y.div||op==='÷',frac:x.frac||y.frac||v.d!==1}]);
-      }
-    }
-  }
-  rec(nums.map(n=>({v:F(n),e:String(n),div:false,frac:false})));
-  // Simplest solutions first: no fractions, no division, shortest
-  return [...sols.entries()].map(([e,m])=>({e,...m}))
-    .sort((p,q)=>(p.frac-q.frac)||(p.div-q.div)||(p.e.length-q.e.length));
+  // Simplest first: no negative running totals, no division, then fewest + and −
+  return[...sols.values()].sort((p,q)=>(p.neg-q.neg)||(p.div-q.div)||p.e.localeCompare(q.e));
 }
 
-/* ---------- Puzzle generation: four numbers 1–9, always solvable ---------- */
+/* ---------- Puzzle generation: four numbers 1–9, always solvable without brackets ---------- */
 const recent=[];
 function makePuzzle(){
   for(let t=0;t<20000;t++){

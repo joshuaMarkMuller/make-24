@@ -3,69 +3,151 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>24 — Maths Game</title>
+<title>Make 24</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<header>
-  <div class="logo"><span>24</span>Make 24!</div>
-  <div class="stats">
-    <div class="chip"><small>Round</small><b id="sRound">1</b></div>
-    <div class="chip"><small>Solved</small><b id="sSolved">0</b></div>
-    <div class="chip"><small>Revealed</small><b id="sSkipped">0</b></div>
-    <div class="chip"><small>Best</small><b id="sBest">–</b></div>
+<div class="window" id="window">
+  <!-- Title bar -->
+  <div class="titlebar">
+    <span class="app-icon" aria-hidden="true"><i></i><i></i></span>
+    <span class="title">Make 24</span>
+    <span class="caption-btns" aria-hidden="true">
+      <span class="cap">_</span><span class="cap">□</span><span class="cap close">×</span>
+    </span>
   </div>
-  <div class="timer" id="timer">0.0s</div>
-</header>
 
-<main>
-  <div id="msg">Pick a card, an operation, then another card.</div>
-  <div class="cards" id="cards"></div>
-  <div class="ops" id="ops">
-    <button class="op" data-op="+">+</button>
-    <button class="op" data-op="−">−</button>
-    <button class="op" data-op="×">×</button>
-    <button class="op" data-op="÷">÷</button>
-  </div>
-  <div class="actions">
-    <button class="btn" id="undoBtn">↶ Undo</button>
-    <button class="btn" id="resetBtn">⟲ Reset</button>
-    <button class="btn danger" id="revealBtn">Reveal solution</button>
-    <button class="btn primary" id="nextBtn">Next puzzle →</button>
-  </div>
-</main>
+  <!-- Menu bar -->
+  <nav class="menubar" id="menubar">
+    <div class="menu">
+      <button class="menu-title" data-menu="game"><u>G</u>ame</button>
+      <div class="menu-list" id="menu-game">
+        <button data-act="next"><span>New Puzzle</span><kbd>F2</kbd></button>
+        <hr>
+        <button data-act="undo"><span>Undo</span><kbd>Backspace</kbd></button>
+        <button data-act="reset"><span>Reset Cards</span><kbd>R</kbd></button>
+        <button data-act="reveal"><span>Reveal Solution</span><kbd>S</kbd></button>
+        <hr>
+        <button data-act="options"><span>Options…</span><kbd></kbd></button>
+        <button data-act="fullscreen"><span>Full Screen</span><kbd></kbd></button>
+        <button data-act="resetStats"><span>Reset Scores</span><kbd></kbd></button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-title" data-menu="help"><u>H</u>elp</button>
+      <div class="menu-list" id="menu-help">
+        <button data-act="howto"><span>How to Play</span><kbd>F1</kbd></button>
+        <button data-act="about"><span>About Make 24</span><kbd></kbd></button>
+      </div>
+    </div>
+  </nav>
 
-<details>
-  <summary>⚙ Settings &amp; teacher tools</summary>
-  <div class="settings">
-    <label>Timer
-      <select id="timerMode">
-        <option value="0">Stopwatch</option>
-        <option value="30">30 s countdown</option>
-        <option value="60">60 s countdown</option>
-        <option value="90">90 s countdown</option>
-        <option value="120">2 min countdown</option>
-      </select>
-    </label>
-    <label>Custom numbers
-      <input type="text" id="customNums" placeholder="e.g. 3 3 8 8">
-      <button class="btn" id="customBtn" style="padding:8px 14px">Play these</button>
-    </label>
-    <button class="btn" id="fsBtn" style="padding:8px 14px">⛶ Full screen</button>
-    <button class="btn" id="resetStats" style="padding:8px 14px">Reset scores</button>
-    <div class="help">Keyboard: <b>1–4</b> select cards · <b>+ − * /</b> operations · <b>Backspace</b> undo · <b>R</b> reset · <b>N</b> next puzzle · <b>S</b> reveal solution</div>
-  </div>
-</details>
+  <!-- Felt -->
+  <main class="felt" id="felt">
+    <div id="msg">Pick a card, an operation, then another card.</div>
+    <div class="cards" id="cards"></div>
+    <div class="ops" id="ops">
+      <button class="xp-btn op" data-op="+">+</button>
+      <button class="xp-btn op" data-op="−">−</button>
+      <button class="xp-btn op" data-op="×">×</button>
+      <button class="xp-btn op" data-op="÷">÷</button>
+    </div>
+    <div class="actions">
+      <button class="xp-btn" id="undoBtn">Undo</button>
+      <button class="xp-btn" id="resetBtn">Reset</button>
+      <button class="xp-btn" id="revealBtn">Reveal Solution</button>
+      <button class="xp-btn default" id="nextBtn">New Puzzle</button>
+    </div>
+    <canvas id="cascade" aria-hidden="true"></canvas>
+  </main>
 
-<div class="overlay" id="overlay">
-  <div class="panel">
-    <h2 id="ovTitle">24!</h2>
-    <div class="big" id="ovExpr"></div>
-    <p id="ovSub"></p>
-    <div class="alts" id="ovAlts"></div>
-    <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-      <button class="btn" id="ovClose">Back to puzzle</button>
-      <button class="btn primary" id="ovNext">Next puzzle →</button>
+  <!-- Status bar -->
+  <footer class="statusbar">
+    <span class="panel grow" id="status">Round 1</span>
+    <span class="panel">Solved: <b id="sSolved">0</b></span>
+    <span class="panel">Revealed: <b id="sSkipped">0</b></span>
+    <span class="panel">Best: <b id="sBest">–</b></span>
+    <span class="panel" id="timer">Time: 0</span>
+  </footer>
+</div>
+
+<!-- Result dialog -->
+<div class="modal" id="overlay">
+  <div class="dialog" role="dialog" aria-labelledby="ovTitle">
+    <div class="titlebar small"><span class="title">Make 24</span>
+      <span class="caption-btns"><button class="cap close" id="ovX" aria-label="Close">×</button></span></div>
+    <div class="dialog-body">
+      <div class="dialog-row">
+        <div class="dlg-icon" id="ovIcon">★</div>
+        <div>
+          <h2 id="ovTitle">You made 24!</h2>
+          <div class="big" id="ovExpr"></div>
+          <p id="ovSub"></p>
+          <p class="alts" id="ovAlts"></p>
+        </div>
+      </div>
+      <div class="dialog-btns">
+        <button class="xp-btn" id="ovClose">Back to Puzzle</button>
+        <button class="xp-btn default" id="ovNext">New Puzzle</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Options dialog -->
+<div class="modal" id="optionsDlg">
+  <div class="dialog" role="dialog" aria-labelledby="optTitle">
+    <div class="titlebar small"><span class="title" id="optTitle">Options</span>
+      <span class="caption-btns"><button class="cap close" data-close="optionsDlg" aria-label="Close">×</button></span></div>
+    <div class="dialog-body">
+      <fieldset>
+        <legend>Timer</legend>
+        <label><input type="radio" name="timerMode" value="0" checked> Stopwatch</label>
+        <label><input type="radio" name="timerMode" value="30"> 30 second countdown</label>
+        <label><input type="radio" name="timerMode" value="60"> 60 second countdown</label>
+        <label><input type="radio" name="timerMode" value="90"> 90 second countdown</label>
+        <label><input type="radio" name="timerMode" value="120"> 2 minute countdown</label>
+      </fieldset>
+      <fieldset>
+        <legend>Custom numbers</legend>
+        <label for="customNums">Four numbers from 1 to 9:</label>
+        <div class="row"><input type="text" id="customNums" placeholder="e.g. 3 3 8 8" autocomplete="off">
+          <button class="xp-btn" id="customBtn">Deal These</button></div>
+        <p class="hint" id="customMsg"></p>
+      </fieldset>
+      <div class="dialog-btns"><button class="xp-btn default" data-close="optionsDlg">OK</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Help dialog -->
+<div class="modal" id="helpDlg">
+  <div class="dialog" role="dialog" aria-labelledby="helpTitle">
+    <div class="titlebar small"><span class="title" id="helpTitle">How to Play</span>
+      <span class="caption-btns"><button class="cap close" data-close="helpDlg" aria-label="Close">×</button></span></div>
+    <div class="dialog-body">
+      <p><b>Goal:</b> use all four cards and + − × ÷ to make exactly <b>24</b>.</p>
+      <ol>
+        <li>Click a card, then an operation, then another card.</li>
+        <li>The two cards combine into one new card.</li>
+        <li>Keep going until one card is left. If it says 24, you win!</li>
+      </ol>
+      <p>Cards are always whole numbers, so ÷ only works when it divides exactly. Every puzzle can be solved without brackets, using the normal order of operations.</p>
+      <p><b>Keyboard:</b> 1–4 pick a card · + − * / pick an operation · Backspace undo · R reset · S reveal · F2 or N new puzzle</p>
+      <div class="dialog-btns"><button class="xp-btn default" data-close="helpDlg">OK</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- About dialog -->
+<div class="modal" id="aboutDlg">
+  <div class="dialog" role="dialog" aria-labelledby="aboutTitle">
+    <div class="titlebar small"><span class="title" id="aboutTitle">About Make 24</span>
+      <span class="caption-btns"><button class="cap close" data-close="aboutDlg" aria-label="Close">×</button></span></div>
+    <div class="dialog-body">
+      <div class="dialog-row"><div class="dlg-icon">24</div>
+        <div><h2>Make 24</h2><p>A classroom maths game.<br>Every puzzle uses four numbers from 1 to 9 and can be solved without brackets or fractions.</p></div></div>
+      <div class="dialog-btns"><button class="xp-btn default" data-close="aboutDlg">OK</button></div>
     </div>
   </div>
 </div>

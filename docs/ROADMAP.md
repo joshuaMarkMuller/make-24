@@ -11,7 +11,9 @@
 ## Stage 1: Projector game
 - [x] HTML application that works in my browser
 - [ ] All functionality works (waiting on a classroom test)
-- [ ] Project is on a public GitHub repository
+- [x] Early-2000s Solitaire look (title bar, menus, green felt, suited cards, dialogs, status bar, win cascade)
+- [x] GitHub-ready folder structure (`public/`, `docs/`, README, licence, .gitignore)
+- [x] Project is on a public GitHub repository
 
 ## Stage 2: Head-to-head over Wi-Fi
 - [ ] I can host the game over a Wi-Fi network and one other person can join and race me
@@ -31,6 +33,9 @@
 - [ ] Others join through a lobby code
 
 ## Change log
+- **2026-10-06** No fractional cards (÷ must divide exactly). Puzzles are only dealt if they can be solved without brackets, and solutions are shown without brackets.
+- **2026-10-06** Stage 1 criteria updated: Solitaire look and folder structure added as done; public GitHub repository done.
+- **2026-10-06** Restyled as an early-2000s desktop card game: title bar, Game/Help menus, green felt, suited playing cards, dialogs, status bar and a bouncing-card win cascade.
 - **2026-10-06** Added a Stage 1 criterion: the project is on a public GitHub repository.
 - **2026-10-06** Split the game into `public/` (HTML, CSS, JS) ready for GitHub; solver separated so the server can reuse it.
 - **2026-10-06** Fixed: going back after revealing a solution froze the cards. It now resets the puzzle for an unscored practice try.

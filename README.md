@@ -14,7 +14,7 @@ Open `public/index.html` in any modern browser. It doesn't need a server or an i
 
 Keyboard: `1`–`4` pick a card · `+ - * /` pick an operation · `Backspace` undo · `R` reset · `N` next · `S` reveal · `Esc` close the panel
 
-Every random puzzle can be solved. Some can only be solved by going through a fraction partway, for example 3 3 8 8 → 8 ÷ (3 − 8 ÷ 3).
+Cards are always whole numbers, so ÷ only works when it divides exactly. Every puzzle has at least one solution that can be written in one line without brackets, using the normal order of operations, for example 8 3 2 2 → 3 × 8 + 2 − 2.
 
 ## Project structure
 
