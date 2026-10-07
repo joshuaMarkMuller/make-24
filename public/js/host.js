@@ -16,7 +16,7 @@ function describeGroups(n){
   if(trio)parts.push('1 group of three');
   return `Each round: ${parts.join(' and ')}.`;
 }
-const standings=s=>[...s.players].sort((a,b)=>b.points-a.points||b.wins-a.wins);
+const standings=s=>rankPlayers(s);
 function show(id){$(id).classList.add('show')}
 function hide(id){$(id).classList.remove('show')}
 
@@ -44,7 +44,7 @@ socket.on('notice',t=>{H.notice=t;H.noticeAt=Date.now();render()});
 const BONK_MS=1400;
 H.bonks=new Map();   // player id → {t: time the bonk animation started, taken: points removed}
 socket.on('bonked',b=>{
-  H.bonks.set(b.id,{t:performance.now(),taken:b.taken});podiumShownFor=0;render();
+  H.bonks.set(b.id,{t:performance.now(),taken:b.taken,life:b.life});podiumShownFor=0;render();
   setTimeout(()=>{H.bonks.delete(b.id);render()},BONK_MS+50);
 });
 socket.on('state',s=>{
@@ -78,13 +78,17 @@ function joinAddresses(s){
 
 function renderLobby(s){
   showView('hostLobby');clearInterval(H.tick);
-  $('hStatus').textContent=`Waiting room · ${s.matchRounds}-round match · ${s.cardCount} cards`;
+  $('hStatus').textContent=`Waiting room · ${isElim(s)?'Elimination, 3 lives':`${s.matchRounds}-round match`} · ${s.cardCount} cards`;
   $('lobbyCode').textContent=s.code;
   $('joinUrl').innerHTML=joinAddresses(s).map(u=>`<span>${esc(u)}</span>`).join('');
   $('hCount').textContent=s.players.length?`${s.players.length} of ${s.maxPlayers} players have joined`:'No players yet';
   $('hPreview').textContent=describeGroups(s.players.length);
   renderPlayerList(s);
   $('hRounds').value=String(s.matchRounds);
+  $('hMode').value=s.mode;$('hRoundsRow').hidden=isElim(s);
+  $('hModeNote').textContent=isElim(s)
+    ?'Everyone starts with 3 lives. Lose your race (or nobody in your group makes 24) and you lose a life. Last player standing wins.'
+    :'Every card must be used to make 24.';
   $('hCardCount').value=String(s.cardCount);
   $('hStart').disabled=s.players.length<2;
   const recent=H.notice&&Date.now()-H.noticeAt<6000?H.notice:'';
@@ -130,7 +134,7 @@ function renderGame(s){
   showView('hostGame');
   $('hostGame').classList.toggle('final',s.phase==='final');   // final results layout: big scoreboard + podium
   const res=s.phase==='result'||s.phase==='final'?s.result:null;
-  $('hRound').textContent=`Round ${s.matchRound} of ${s.matchRounds}`;
+  $('hRound').textContent=isElim(s)?`Round ${s.matchRound} · ${s.players.filter(p=>!p.out).length} left`:`Round ${s.matchRound} of ${s.matchRounds}`;
   $('hStatus').textContent=s.phase==='countdown'?'Get ready…':s.phase==='playing'?'Racing':s.phase==='final'?'Match over':'Round over';
 
   // The four cards everyone is racing (dealt in once per round)
@@ -157,12 +161,13 @@ function renderGame(s){
     const solved=s.players.filter(p=>p.solved).length,racing=s.players.filter(p=>p.group!==null&&!p.solved&&!p.gaveUp).length;
     $('hBanner').textContent=`${solved} made 24 · ${racing} still racing`;
   }else if(s.phase==='final'){
-    const top=rows[0],leaders=rows.filter(p=>p.points===top.points&&p.wins===top.wins).map(p=>p.name);
-    const ended=res&&res.endedEarly?` (game ended after round ${s.matchRound} of ${s.matchRounds})`:'';
-    $('hBanner').textContent=(top.points===0?'Game over. Nobody scored':leaders.length>1?`It's a tie between ${listNames(leaders)}!`:`🏆 ${top.name} wins the match!`)+ended;
+    const top=rows[0],leaders=rows.filter(p=>samePlace(s,p,top)).map(p=>p.name);
+    const ended=res&&res.endedEarly?(isElim(s)?` (game ended in round ${s.matchRound})`:` (game ended after round ${s.matchRound} of ${s.matchRounds})`):'';
+    $('hBanner').textContent=(!isElim(s)&&top.points===0?'Game over. Nobody scored':leaders.length>1?`It's a tie between ${listNames(leaders)}!`:isElim(s)?`🏆 ${top.name} is the last one standing!`:`🏆 ${top.name} wins the match!`)+ended;
   }else{
     const f=res&&res.fastest,n=res?res.solvedCount:0;
-    $('hBanner').textContent=(f?`${n} of ${s.players.length} made 24 · Fastest: ${f.name} in ${f.time.toFixed(1)} s`:'Nobody made 24 this round')+(res&&res.solution?`  ·  One answer: ${res.solution} = 24`:'');
+    const out=isElim(s)&&res&&res.knockedOut&&res.knockedOut.length?`  ·  Out: ${listNames(res.knockedOut)}`:'';
+    $('hBanner').textContent=(f?`${n} of ${s.players.length} made 24 · Fastest: ${f.name} in ${f.time.toFixed(1)} s`:'Nobody made 24 this round')+out+(res&&res.solution?`  ·  One answer: ${res.solution} = 24`:'');
   }
 
   renderRaces(s,res);
@@ -208,6 +213,7 @@ function renderRaces(s,res){
       else if(p&&p.gaveUp)detail='gave up';
       else if(res)detail='—';
       else{const n=p&&p.layout?p.layout.length:s.cardCount,left=p&&p.layout?p.layout.filter(Boolean).length:n;detail=`<span class="pips">${'●'.repeat(left)}${'○'.repeat(n-left)}</span>`}
+      if(isElim(s)&&res&&p){if(p.out&&p.outRound===s.matchRound)detail+=' · <b class="knocked">OUT</b>';else if(p.lostLife)detail+=' · −❤️'}
       return `<div class="racer-row${solved?' solved':''}${p&&p.gaveUp?' out':''}"><span class="racer${first?' won':''}">${first?'★ ':solved?'✓ ':''}${emojiTag(s,p)}${esc(nameOf(id))}</span><span class="racer-detail">${detail}</span></div>`;
     }).join('');
     const anySolved=g.solvers?g.solvers.length>0:g.members.some(id=>{const p=s.players.find(q=>q.id===id);return p&&p.solved});
@@ -223,26 +229,29 @@ function bonkBits(id){
   const ago=performance.now()-b.t;if(ago>BONK_MS)return{cls:'',style:'',pop:''};
   const d=`animation-delay:-${Math.round(ago)}ms`;
   return{cls:' bonked',style:` style="${d}"`,pop:`<span class="bonk-pop" style="${d}" aria-hidden="true">BONK!</span>`,
-    tag:`<span class="tag minus">−${b.taken}</span>`};
+    tag:`<span class="tag minus">${b.life?'−❤️':'−'+b.taken}</span>`};
 }
 
 function renderScores(s,rows){
-  const max=Math.max(0,...rows.map(p=>p.points));
+  const elim=isElim(s);
+  // Points: bars scaled to the top score. Elimination: bars show lives left out of 3.
+  const max=elim?(s.maxLives||3):Math.max(0,...rows.map(p=>p.points));
+  const val=p=>elim?p.lives:p.points;
   const pct=v=>max>0?(v/max)*100:0;
   const box=$('hScores');box.classList.toggle('compact',rows.length>(s.phase==='final'?12:10));
   box.innerHTML=rows.map((p,i)=>{
-    const same=q=>q&&q.points===p.points&&q.wins===p.wins;
+    const same=q=>samePlace(s,q,p);
     const rank=rows.findIndex(same)+1,tied=rows.filter(same).length>1;
-    const from=H.prevPct.has(p.id)?H.prevPct.get(p.id):pct(p.points);
+    const from=H.prevPct.has(p.id)?H.prevPct.get(p.id):pct(val(p));
     const bk=bonkBits(p.id);
-    const tag=bk.tag||(p.gained?`<span class="tag ready">+${p.gained}</span>`:'');
-    const note=`${p.wins} race${p.wins===1?'':'s'} won`+(p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:'');
-    return `<div class="sb-row${i===0&&max>0&&!rows.slice(1).some(same)?' lead':''}${bk.cls}" data-id="${esc(p.id)}">`+
+    const tag=bk.tag||(elim?(p.lostLife&&(s.phase==='result'||s.phase==='final')?'<span class="tag minus">−❤️</span>':''):(p.gained?`<span class="tag ready">+${p.gained}</span>`:''));
+    const note=(elim&&p.out?`Out in round ${p.outRound} · `:'')+`${p.wins} race${p.wins===1?'':'s'} won`+(p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:'');
+    return `<div class="sb-row${i===0&&max>0&&!rows.slice(1).some(same)&&!(elim&&p.out)?' lead':''}${elim&&p.out?' out':''}${bk.cls}" data-id="${esc(p.id)}">`+
       `<span class="sb-rank">${tied?rank+'=':rank}</span>`+
       `<span class="sb-name"${bk.style}><span class="sb-line">${emojiTag(s,p)}<b>${esc(p.name)}</b></span><small>${note}</small></span>`+
-      `<span class="sb-track"${bk.style}><span class="sb-fill" data-id="${esc(p.id)}" data-to="${pct(p.points)}" style="width:${from}%"></span></span>`+
-      `<span class="sb-pts">${p.points.toLocaleString()}${tag}`+
-      `<button class="bonk-btn" data-id="${esc(p.id)}" title="Bonk ${esc(p.name)}: take ${500} points" aria-label="Bonk ${esc(p.name)}">Bonk</button></span>`+
+      `<span class="sb-track"${bk.style}><span class="sb-fill" data-id="${esc(p.id)}" data-to="${pct(val(p))}" style="width:${from}%"></span></span>`+
+      `<span class="sb-pts">${elim?`<span class="hearts" aria-label="${p.lives} lives">${hearts(s,p)}</span>`:p.points.toLocaleString()}${tag}`+
+      `<button class="bonk-btn" data-id="${esc(p.id)}" title="Bonk ${esc(p.name)}: take ${elim?'a life':'500 points'}" aria-label="Bonk ${esc(p.name)}"${elim&&p.out?' disabled':''}>Bonk</button></span>`+
       bk.pop+`</div>`;
   }).join('');
   // Grow (or shrink) the bars that changed
@@ -264,19 +273,19 @@ $('hScores').addEventListener('keydown',e=>{
 let podiumShownFor=0;
 function renderPodium(s,rows){
   const box=$('hPodium');
-  const scorers=rows.filter(p=>p.points>0);
+  const scorers=isElim(s)?rows:rows.filter(p=>p.points>0);
   if(s.phase!=='final'||!scorers.length){box.hidden=true;box.innerHTML='';podiumShownFor=0;return}
   box.hidden=false;
   if(podiumShownFor===s.round)return;            // already built for this match end
   podiumShownFor=s.round;
-  const placeOf=p=>rows.findIndex(q=>q.points===p.points&&q.wins===p.wins)+1;
+  const placeOf=p=>rows.findIndex(q=>samePlace(s,q,p))+1;
   const top=scorers.slice(0,3);
   const ordinal=n=>({1:'1st',2:'2nd',3:'3rd'})[n]||n+'th';
   const step=(p,slot)=>{
     if(!p)return `<div class="step empty step-${slot}"></div>`;
     const place=placeOf(p);
     return `<div class="step step-${slot} place-${Math.min(place,3)}">`+
-      `<div class="step-emo">${emojiTag(s,place===1?p:{...p,id:'podium-'+p.id})}</div><div class="step-name">${esc(p.name)}</div><div class="step-score">${p.points.toLocaleString()}</div>`+
+      `<div class="step-emo">${emojiTag(s,place===1?p:{...p,id:'podium-'+p.id})}</div><div class="step-name">${esc(p.name)}</div><div class="step-score">${isElim(s)?(p.out?`Out in round ${p.outRound}`:hearts(s,p)):p.points.toLocaleString()}</div>`+
       `<div class="step-block"><span class="step-place">${ordinal(place)}</span></div></div>`;
   };
   // Classic order: 2nd on the left, 1st in the middle, 3rd on the right
@@ -289,12 +298,15 @@ $('hNext').onclick=()=>{H.prevPct.clear();socket.emit('start')};      // next ro
 $('hLobby').onclick=()=>{H.prevPct.clear();socket.emit('toLobby')};
 $('hEnd').onclick=()=>{
   const s=H.state,live=s&&(s.phase==='playing'||s.phase==='countdown');
-  $('endMsg').textContent=(live?'Races still going will stop now; points already scored count. ':'')+
+  $('endMsg').textContent=isElim(s)
+    ?(live?'Races still going will stop now and nobody loses a life this round. ':'')+'The player with the most lives left wins (ties share first place).'
+    :(live?'Races still going will stop now; points already scored count. ':'')+
     `The scoreboard as it stands after round ${s.matchRound} of ${s.matchRounds} will be the final result.`;
   show('endDlg');$('endYes').focus();
 };
 $('endYes').onclick=()=>{hide('endDlg');socket.emit('endMatch')};
 $('hRounds').onchange=()=>socket.emit('setRounds',+$('hRounds').value);
+$('hMode').onchange=()=>socket.emit('setMode',$('hMode').value);
 $('hCardCount').onchange=()=>socket.emit('setCards',+$('hCardCount').value);
 
 /* ---------- Menus, help, keys ---------- */

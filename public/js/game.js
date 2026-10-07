@@ -186,7 +186,8 @@ function stopCascade(){
   cancelAnimationFrame(cascadeRAF);cascadeRAF=null;cascadeDone=null;
   const cv=$('cascade');cv.classList.remove('on');cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
 }
-$('cascade').onclick=finishCascade;
+// The cascade sits behind the table, so a click anywhere on the table skips it
+$('felt').addEventListener('click',()=>{if(cascadeRAF)finishCascade()});
 
 /* ---------- Menus ---------- */
 function closeMenus(){document.querySelectorAll('.menu.open').forEach(m=>m.classList.remove('open'))}

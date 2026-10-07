@@ -6,7 +6,7 @@
 | 2 | Head-to-head over Wi-Fi | Complete |
 | 3 | 10-round match | Complete |
 | 4 | Whole class (up to 24) | Complete |
-| 5 | Sound effects and visuals | In progress |
+| 5 | Sound effects and visuals | Complete |
 | 6 | Online with lobby codes | In progress |
 | 7 | Real-world testing | Not started |
 
@@ -33,9 +33,9 @@
 
 ## Stage 5: Sound effects and visuals
 - [x] Players can select an emoji, shown next to their name, that animates when they win or lose
-- [ ] A sound plays when a player selects a card
-- [ ] A sound plays during the card cascade
-- [ ] A sound plays when time runs out
+- [x] Card select: a short card flick plays when a player selects a card
+- [x] Win cascade: a long riffle shuffle plays during the card cascade
+- [x] Out of time: a short shuffle plays when time runs out
 
 ## Stage 6: Online with lobby codes
 - [x] The game is hosted online through a paid hosting service
@@ -53,19 +53,21 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Energy** | **≈ 14.1 kWh** | 5.8–27.4 kWh | about 141 boils of a full electric kettle (58–274 boils) |
-| **Water** | **≈ 58 litres** | 6–112 litres | about one short shower |
-| **Cost** | **≈ A$4.20** | A$1.66–8.16 | energy ≈ A$3.98 plus water ≈ A$0.23, at Victorian household prices |
+| **Prompts** | **94** | | messages you've sent Claude so far |
+| **Energy** | **≈ 17.2 kWh** | 7.1–33.3 kWh | about 172 boils of a full electric kettle (71–333 boils) |
+| **Water** | **≈ 70 litres** | 7–137 litres | about one short shower |
+| **Cost** | **≈ A$5.12** | A$2.02–9.94 | energy ≈ A$4.84 plus water ≈ A$0.27, at Victorian household prices |
+| **Cost per prompt** | **≈ 5.4c** | 2.1–10.6c | average: total cost ÷ number of prompts |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
 | Activity | Share | Energy |
 |---|---|---|
-| Reading and writing project files | 29% | ≈ 4.1 kWh |
-| Running code and tests | 29% | ≈ 4.1 kWh |
-| Claude's built-in instructions (re-read every step) | 22% | ≈ 3.1 kWh |
-| Conversation and replies | 12% | ≈ 1.7 kWh |
-| Syncing files to the computer | 7% | ≈ 1.0 kWh |
+| Reading and writing project files | 28% | ≈ 4.8 kWh |
+| Running code and tests | 32% | ≈ 5.5 kWh |
+| Claude's built-in instructions (re-read every step) | 21% | ≈ 3.6 kWh |
+| Conversation and replies | 12% | ≈ 2.1 kWh |
+| Syncing files to the computer | 7% | ≈ 1.2 kWh |
 
 **How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
 
@@ -74,7 +76,26 @@ Where the energy went (approximate share of the estimate; water follows the same
 - **Cost:** energy and water priced at Victorian household rates for 2026–27 in Hoppers Crossing's area: 28.22c per kWh for electricity (Victorian Default Offer, Powercor zone, Essential Services Commission) and $3.8954 per kilolitre for water (Greater Western Water, first-step usage charge). This is what the same electricity and water would cost a Victorian household, not what Anthropic pays.
 - **Split between activities:** weighted by cost, so re-reading earlier conversation counts for less than new reading or writing.
 
+**References**
+
+Essential Services Commission. (2026). *Victorian Default Offer*. https://www.esc.vic.gov.au/electricity-and-gas/prices-tariffs-and-benchmarks/victorian-default-offer
+
+Greater Western Water. (2026). *Residential prices and charges*. https://www.gww.com.au/accounts-billing/prices-charges/residential-prices-charges
+
+Hausfather, Z. (2026, August 12). The real energy use of agentic AI. *The Climate Brink*. https://www.theclimatebrink.com/p/the-real-energy-use-of-agentic-ai
+
+Li, P., Yang, J., Islam, M. A., & Ren, S. (2023). *Making AI less "thirsty": Uncovering and addressing the secret water footprint of AI models* (arXiv:2304.03271). arXiv. https://doi.org/10.48550/arXiv.2304.03271
+
 ## Change log
+- **2026-10-07** Roadmap page: the Claude usage section now has a line chart of the cost of each prompt (prompt number along the bottom, cost in cents up the side). The first 51 prompts only have a recorded total, so they show as their average.
+- **2026-10-07** New Elimination game mode, chosen by the host in the waiting room. Everyone starts with 3 lives and is still paired each round (one group of three for odd numbers). The first in each group to make 24 keeps their lives and everyone else in the group loses one; if nobody in a group makes 24, they all lose one. Players on 0 lives are out and watch. Last player standing wins. Scoreboards and the podium show hearts, Bonk takes a life, and if a round would knock out every remaining player at once they all stay in on one life. Tested with a simulated 5-player game.
+- **2026-10-07** Claude usage: APA 7 references added for the energy, water and price figures (Hausfather, 2026; Li et al., 2023; Essential Services Commission, 2026; Greater Western Water, 2026). On the roadmap page, the dot point about Anthropic not publishing figures was removed.
+- **2026-10-07** Roadmap page: the explanation above the Claude usage figures is now a short list of dot points.
+- **2026-10-07** Claude usage now shows the average cost per prompt (total cost ÷ number of prompts), after the cost in A$.
+- **2026-10-07** Stage 5 complete. Sound effects added: a card flick when selecting a card, a long riffle shuffle during the win cascade, and a short shuffle when time runs out. No more sound effects planned.
+- **2026-10-07** Claude usage now starts with the total number of prompts sent. The first 51 were counted from the conversation summary, since the earliest messages are no longer in the session record.
+- **2026-10-07** The win cascade now plays behind everything else on the table (cards, buttons, messages, the opponent panel and the scoreboard) on both the player screen and the projector game. In the projector game, clicking anywhere on the table still skips it.
+- **2026-10-07** Player screen: when a player gets down to one card that isn't 24, the card shakes with a red glow and shrinks away, then the cards deal back in automatically (under a second) so they can try again. No points are lost and opponents see the reset on the face-down cards.
 - **2026-10-07** Card sound effects added to the player screen (public/sounds/): a card flick when selecting a card, a long riffle shuffle during the win cascade, and a short shuffle when time runs out. The sounds are original, made for the game, so there are no licence issues. Sound can be switched off in the Game menu. The criteria stay unticked until you've listened to them.
 - **2026-10-07** Host waiting room redesigned: the card and match-length settings sit beside the lobby code, player names and emoji are larger and centred, and the whole waiting room fits on a 1366×768 laptop screen with 24 players. On smaller screens the player list scrolls inside the room, so Start Match always stays visible.
 - **2026-10-07** All emoji now gently sway all the time: in the picker grid, on the picker button and next to names on every screen, each slightly out of step with the others. The win bounce and lose droop take over when they happen. Devices set to reduce motion show them still.

@@ -32,7 +32,7 @@ function describeGroups(n){
   if(trio)parts.push('1 group of three');
   return `${n} players → ${parts.join(' and ')} each round`;
 }
-function standings(s){return [...s.players].sort((a,b)=>b.points-a.points||b.wins-a.wins)}
+function standings(s){return rankPlayers(s)}
 
 /* ---------- Joining ---------- */
 // The code can come from the link (?code=KQ7PX); name and code are remembered for a quick rejoin
@@ -84,6 +84,7 @@ socket.on('renamed',name=>{R.me=name;$('youPanel').textContent=`You: ${R.emoji||
 socket.on('round',r=>{
   // Every group gets the same cards; suits are just for looks
   R.nums=r.nums;R.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
+  clearTimeout(R.wrongTimer);R.wrongIdx=null;
   resetBoard();R.locked=true;hide('resultDlg');stopCascade();clearOpps();clearInterval(R.nextTick);SFX.stop('cascade');
   R.deadline=performance.now()+r.countdownMs+r.limitMs;
   if(!R.me)return;
@@ -112,11 +113,11 @@ function render(){
 
   // Status bar
   $('status').textContent=(s.phase==='lobby'||!s.matchRound)
-    ?`Waiting room · ${s.players.length} player${s.players.length===1?'':'s'} · ${s.matchRounds} rounds · ${s.cardCount} cards`
-    :`Round ${s.matchRound} of ${s.matchRounds}`;
+    ?`Waiting room · ${s.players.length} player${s.players.length===1?'':'s'} · ${isElim(s)?'Elimination':s.matchRounds+' rounds'} · ${s.cardCount} cards`
+    :isElim(s)?`Round ${s.matchRound} · ${s.players.filter(p=>!p.out).length} left`:`Round ${s.matchRound} of ${s.matchRounds}`;
   if(me&&s.matchRound&&s.phase!=='lobby'){
-    const rows=standings(s),rank=rows.findIndex(p=>p.points===me.points&&p.wins===me.wins)+1;
-    $('scorePanel').textContent=`Score: ${me.points.toLocaleString()} · ${ordinal(rank)} of ${rows.length}`;
+    const rows=standings(s),rank=rows.findIndex(p=>samePlace(s,p,me))+1;
+    $('scorePanel').textContent=isElim(s)?(me.out?`Out (round ${me.outRound})`:`Lives: ${hearts(s,me)}`):`Score: ${me.points.toLocaleString()} · ${ordinal(rank)} of ${rows.length}`;
   }else $('scorePanel').textContent='Score: –';
   $('oppPanel').textContent='Racing: '+(opps.length?listNames(opps.map(o=>o.name)):'–');
   renderOpps(opps,s,myGroup);
@@ -133,10 +134,14 @@ function render(){
     const list=$('playerList');
     list.innerHTML=s.players.map(p=>`<li><span>${emojiTag(s,p)}${esc(p.name)}${p.id===R.myId?'<span class="you">(you)</span>':''}</span>`+
       `</li>`).join('')||'<li class="empty">Nobody has joined yet.</li>';
-    $('roundsSel').value=String(s.matchRounds);$('roundsSel').disabled=true;
-    $('roundsNote').textContent=`Chosen by the host · ${s.cardCount}-card game.`;
+    $('roundsSel').value=String(s.matchRounds);$('roundsSel').disabled=true;$('roundsSel').hidden=isElim(s);
+    $('roundsNote').textContent=isElim(s)?`Elimination: everyone has 3 lives, last one standing wins · ${s.cardCount}-card game.`:`Chosen by the host · ${s.cardCount}-card game.`;
     $('startBtn').hidden=true;
-    if(sittingOut){
+    if(sittingOut&&isElim(s)&&me.out){
+      $('lobbyTitle').textContent='You’re out!';
+      $('groupPreview').textContent=`${s.players.filter(p=>!p.out).length} players are still in.`;
+      $('lobbyMsg').textContent='You’ve lost all 3 lives. Watch the projector to see who’s the last one standing.';
+    }else if(sittingOut){
       $('lobbyTitle').textContent='Round in progress';
       $('groupPreview').textContent='';
       $('lobbyMsg').textContent='You’ll join in from the next round.';
@@ -161,7 +166,7 @@ function render(){
   }
   // While I wait for the others, keep the scoreboard on top of the cascade up to date
   else if(s.phase==='playing'&&me.solved&&R.liveRound===s.round){
-    const sig=s.players.map(p=>p.id+':'+p.points+':'+p.bonks).join();
+    const sig=s.players.map(p=>p.id+':'+p.points+':'+p.bonks+':'+p.lives).join();
     if(sig!==R.liveSig){R.liveSig=sig;renderScoreRows(s,false)}
   }
   // An opponent beat me to it, but I can still score
@@ -183,7 +188,7 @@ function showSolved(s,me,first){
   $('resExpr').textContent=last?`${last.e} = 24`:'';
   $('resSub').textContent=`+${me.gained} points${first?` (including +${s.firstBonus} for finishing first)`:''}.`;
   clearInterval(R.nextTick);$('againNote').textContent='Waiting for the others to finish…';
-  R.liveRound=s.round;R.liveSig=s.players.map(p=>p.id+':'+p.points+':'+p.bonks).join();
+  R.liveRound=s.round;R.liveSig=s.players.map(p=>p.id+':'+p.points+':'+p.bonks+':'+p.lives).join();
   renderScoreRows(s,true);show('resultDlg');growScores();
 }
 
@@ -214,16 +219,27 @@ function showResult(res,s){
     sub=(mine.winner?`${mine.winner} won your race. `:'')+'No points this round. Here is one answer.';
     if(!timedOut)setMsg(res.reason==='host'?'The host ended the game.':'Time’s up!','bad');
   }
+  const meNow=s.players.find(p=>p.id===R.myId);
+  if(isElim(s)&&mine&&meNow){
+    // Elimination: the result is about lives, not points
+    if(meNow.out&&meNow.outRound===s.matchRound){title='You’re out!';icon='✕'}
+    if(won)sub=`You won your race and keep your lives: ${hearts(s,meNow)}.`;
+    else if(res.reason==='host')sub='The host ended the game, so nobody lost a life this round.';
+    else sub=(solve?`${mine.winner} was first, so you lose a life. `:mine.winner?`${mine.winner} won your race, so you lose a life. `:'Nobody in your group made 24, so you each lose a life. ')+
+      (meNow.out?'That was your last life.':`Lives left: ${hearts(s,meNow)}.`);
+    if(res.wipeout)sub+=' Everyone left would have been knocked out at once, so they all stay in on one life.';
+  }
   if(res.fastest)sub+=` Fastest in the class: ${res.fastest.id===R.myId?'you':res.fastest.name} (${res.fastest.time.toFixed(1)} s).`;
 
   const rows=standings(s);
-  const top=rows[0],tie=rows.length>1&&rows[1].points===top.points&&rows[1].wins===top.wins;
+  const top=rows[0],tie=rows.length>1&&samePlace(s,rows[1],top);
   if(final){
     const meWin=!tie&&top.id===R.myId;
-    const leaders=rows.filter(p=>p.points===top.points&&p.wins===top.wins).map(p=>p.name);
-    title=top.points===0?'Game over':tie?`It's a tie between ${listNames(leaders)}!`:(meWin?'You win the match!':`${top.name} wins the match!`);
-    icon=top.points===0?'i':tie?'=':(meWin?'★':'!');
-    sub=res.endedEarly?`The host ended the game after round ${s.matchRound} of ${s.matchRounds}. ${sub}`:`Last round: ${sub}`;
+    const leaders=rows.filter(p=>samePlace(s,p,top)).map(p=>p.name);
+    const nobody=!isElim(s)&&top.points===0;
+    title=nobody?'Game over':tie?`It's a tie between ${listNames(leaders)}!`:isElim(s)?(meWin?'You’re the last one standing!':`${top.name} is the last one standing!`):(meWin?'You win the match!':`${top.name} wins the match!`);
+    icon=nobody?'i':tie?'=':(meWin?'★':'!');
+    sub=res.endedEarly?(isElim(s)?`The host ended the game in round ${s.matchRound}. ${sub}`:`The host ended the game after round ${s.matchRound} of ${s.matchRounds}. ${sub}`):`Last round: ${sub}`;
   }
   $('resIcon').textContent=icon;$('resIcon').classList.toggle('warn',icon==='!');
   $('resTitle').textContent=title;$('resExpr').textContent=expr;$('resSub').textContent=sub;
@@ -238,7 +254,7 @@ function showResult(res,s){
   else{
     // The next round starts by itself after a 3-second countdown
     const f=()=>{const n=R.nextAt?Math.max(1,Math.min(3,Math.ceil((R.nextAt-performance.now())/1000))):3;
-      $('againNote').textContent=`${left} round${left>1?'s':''} to go. Next round in ${n}…`};
+      $('againNote').textContent=isElim(s)?`${s.players.filter(p=>!p.out).length} players still in. Next round in ${n}…`:`${left} round${left>1?'s':''} to go. Next round in ${n}…`};
     f();R.nextTick=setInterval(f,200);
   }
   renderCards();
@@ -258,22 +274,28 @@ function showResult(res,s){
 // scaled against it, so the bar lengths show the gap between players. grow=true starts
 // each bar at last round's score so growScores() can animate it; bonkId shakes that row.
 function renderScoreRows(s,grow,bonkId,bonkTaken){
+  const elim=isElim(s);
   const rows=standings(s);
-  const top=rows[0],tie=rows.length>1&&rows[1].points===top.points&&rows[1].wins===top.wins;
-  const max=Math.max(...rows.map(p=>p.points));
+  const top=rows[0],tie=rows.length>1&&samePlace(s,rows[1],top);
+  // Points: bars scaled to the top score. Elimination: bars show lives left out of 3.
+  const val=p=>elim?p.lives:p.points;
+  const max=elim?(s.maxLives||3):Math.max(...rows.map(p=>p.points));
   const pct=v=>max>0?(v/max)*100:0;
   const box=$('scoreRows');box.classList.toggle('compact',rows.length>8);
   box.innerHTML=rows.map((p,i)=>{
-    const same=q=>q&&q.points===p.points&&q.wins===p.wins;
+    const same=q=>samePlace(s,q,p);
     const rank=rows.findIndex(same)+1,tied=rows.filter(same).length>1;
-    const before=grow?p.points-(p.gained||0):p.points;
+    const before=elim?(grow&&p.lostLife?p.lives+1:p.lives):(grow?p.points-(p.gained||0):p.points);
     const bonked=p.id===bonkId;
-    return `<div class="sb-row${p.id===R.myId?' me':''}${i===0&&!tie&&max>0?' lead':''}${bonked?' bonked':''}">`+
+    return `<div class="sb-row${p.id===R.myId?' me':''}${i===0&&!tie&&max>0&&!(elim&&p.out)?' lead':''}${elim&&p.out?' out':''}${bonked?' bonked':''}">`+
       `<span class="sb-rank">${tied?rank+'=':rank}</span>`+
-      `<span class="sb-name"><span class="sb-line">${emojiTag(s,p)}<b>${esc(p.name)}</b>${p.id===R.myId?' <span class="you">(you)</span>':''}</span><small>${p.wins} race${p.wins===1?'':'s'} won${p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:''}</small></span>`+
-      `<span class="sb-track"><span class="sb-fill" data-to="${pct(p.points)}" style="width:${pct(before)}%"></span></span>`+
-      `<span class="sb-pts"><span class="sb-num" data-from="${before}" data-to="${p.points}">${before.toLocaleString()}</span>`+
-      `${bonked?`<span class="gain minus">−${bonkTaken}</span>`:grow&&p.gained?`<span class="gain">+${p.gained}</span>`:''}</span>`+
+      `<span class="sb-name"><span class="sb-line">${emojiTag(s,p)}<b>${esc(p.name)}</b>${p.id===R.myId?' <span class="you">(you)</span>':''}</span><small>${elim&&p.out?`Out in round ${p.outRound} · `:''}${p.wins} race${p.wins===1?'':'s'} won${p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:''}</small></span>`+
+      `<span class="sb-track"><span class="sb-fill" data-to="${pct(val(p))}" style="width:${pct(before)}%"></span></span>`+
+      (elim
+        ?`<span class="sb-pts"><span class="hearts" aria-label="${p.lives} lives">${hearts(s,p)}</span>`+
+          `${bonked?'<span class="gain minus">−❤️</span>':grow&&p.lostLife?'<span class="gain minus">−❤️</span>':''}</span>`
+        :`<span class="sb-pts"><span class="sb-num" data-from="${before}" data-to="${p.points}">${before.toLocaleString()}</span>`+
+          `${bonked?`<span class="gain minus">−${bonkTaken}</span>`:grow&&p.gained?`<span class="gain">+${p.gained}</span>`:''}</span>`)+
       (bonked?'<span class="bonk-pop" aria-hidden="true">BONK!</span>':'')+`</div>`;
   }).join('');
 }
@@ -281,14 +303,15 @@ function renderScoreRows(s,grow,bonkId,bonkTaken){
 // The host bonked someone: tell the player, and shake their row if the results are showing
 socket.on('bonked',b=>{
   if(b.id===R.myId){
-    const m=$('msg');setMsg(`BONK! The host took ${b.taken} points from you.`,'bad');
+    const what=b.life?(b.out?'your last life. You’re out':'a life'):`${b.taken} points`;
+    const m=$('msg');setMsg(`BONK! The host took ${what} from you.`,'bad');
     m.classList.remove('bonk-msg');void m.offsetWidth;m.classList.add('bonk-msg');
-    R.notice=`BONK! The host took ${b.taken} points from you.`;R.noticeAt=Date.now();
+    R.notice=`BONK! The host took ${what} from you.`;R.noticeAt=Date.now();
   }
   // Refresh the results scoreboard if it's open, or about to open after the win animation
   const st=R.state;
   if(st&&(st.phase==='result'||st.phase==='final')&&R.shownResultRound===st.round)renderScoreRows(st,false,b.id,b.taken);
-  else if(st&&st.phase==='playing'&&R.liveRound===st.round){R.liveSig=st.players.map(p=>p.id+':'+p.points+':'+p.bonks).join();renderScoreRows(st,false,b.id,b.taken)}
+  else if(st&&st.phase==='playing'&&R.liveRound===st.round){R.liveSig=st.players.map(p=>p.id+':'+p.points+':'+p.bonks+':'+p.lives).join();renderScoreRows(st,false,b.id,b.taken)}
   render();
 });
 
@@ -320,7 +343,7 @@ function renderCards(anim){
     const slot=document.createElement('div');slot.className='slot';
     if(s){
       const c=document.createElement('div');const label=fmtText(s.v);
-      c.className='card'+(s.suit.red?' red':'')+(R.sel===i?' sel':'')+(anim==='deal'?' deal':(s.fresh?' pop':''));
+      c.className='card'+(s.suit.red?' red':'')+(R.sel===i?' sel':'')+(anim==='deal'?' deal':R.wrongIdx===i?' wrong':(s.fresh?' pop':''));
       if(anim==='deal')c.style.animationDelay=(i*0.09)+'s';
       // Out of time: keep the grey-out going from where it was if the cards are redrawn
       if(R.state&&R.timedOutRound===R.state.round)c.style.animationDelay=(i*0.08-(performance.now()-R.timedOutAt)/1000)+'s';
@@ -368,9 +391,24 @@ function clickCard(i){
     if(v===24){
       R.locked=true;R.sel=null;setMsg('Checking…');
       socket.emit('submit',R.moves,res=>{if(!res.ok)setMsg(res.error,'bad')});
-    }else setMsg(`That makes ${fmtText(v)}, not 24. Undo or reset and try again.`,'bad');
+    }else wrongAnswer(i,v);
   }else setMsg('Keep going…');
   renderCards();
+}
+// Down to one card but it isn't 24: the card shakes red and fades, then the cards
+// deal back in so the player can try again straight away (no score lost).
+const WRONG_MS=900;
+function wrongAnswer(i,v){
+  const round=R.state&&R.state.round;
+  R.locked=true;R.sel=null;R.op=null;R.wrongIdx=i;
+  setMsg(`That makes ${fmtText(v)}, not 24. Try again!`,'bad');
+  clearTimeout(R.wrongTimer);
+  R.wrongTimer=setTimeout(()=>{
+    R.wrongIdx=null;
+    const s=R.state;
+    if(!s||s.round!==round||s.phase!=='playing'||R.timedOutRound===s.round)return;   // round already over
+    resetBoard();R.locked=false;sendProgress({kind:'reset'});renderCards('deal');
+  },reduceMotion()?400:WRONG_MS);
 }
 function pickOp(op){if(!canPlay())return;if(R.sel===null){setMsg('Pick a card first.','bad');return}R.op=op;renderCards()}
 function undo(){if(!canPlay()||!R.history.length)return;R.slots=R.history.pop();R.moves.pop();R.sel=null;R.op=null;sendProgress({kind:'undo'});setMsg('Undone.');renderCards()}
@@ -464,6 +502,7 @@ const OUT_OF_TIME_MS=1900;   // how long the results wait so the player sees it
 function outOfTime(){
   const s=R.state;if(!s||R.timedOutRound===s.round)return;
   R.timedOutRound=s.round;R.timedOutAt=performance.now();
+  clearTimeout(R.wrongTimer);R.wrongIdx=null;
   SFX.play('timeUp');
   R.locked=true;R.sel=null;R.op=null;stopTimer();
   renderCards();
@@ -495,7 +534,6 @@ function runCascade(onDone){
 }
 function finishCascade(){const cb=cascadeDone;stopCascade();if(cb)cb()}
 function stopCascade(){cancelAnimationFrame(cascadeRAF);cascadeRAF=null;cascadeDone=null;const cv=$('cascade');cv.classList.remove('on');cv.getContext('2d').clearRect(0,0,cv.width,cv.height)}
-$('cascade').onclick=finishCascade;
 
 /* ---------- Dialogs, menus, buttons, keys ---------- */
 function show(id){closeMenus();$(id).classList.add('show')}

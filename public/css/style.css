@@ -104,8 +104,10 @@ body{background:#3a6ea5;font-family:var(--ui);font-size:13px;color:#000;user-sel
 .xp-btn.op.sel{background:linear-gradient(180deg,#ffe9a8,#f8b636);box-shadow:inset 0 0 0 2px #c77d00}
 .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 
-#cascade{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none}
-#cascade.on{display:block;pointer-events:auto;cursor:pointer}
+/* The win cascade plays behind everything else on the table: cards, buttons, messages and panels stay on top */
+#cascade{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none;z-index:0}
+.felt>:not(#cascade){position:relative;z-index:1}
+#cascade.on{display:block}
 
 /* ---------- Status bar ---------- */
 .statusbar{display:flex;flex-wrap:wrap;gap:2px;padding:2px;background:var(--chrome);border-top:1px solid #fff;flex:none;font-size:clamp(12px,1.2vw,16px)}
@@ -520,3 +522,22 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 #hostLobby .join-url{padding:4px 14px;font-size:clamp(20px,3vw,38px)}
 #hostLobby .dialog-body>#hPlayers{flex:1 1 auto;min-height:60px;max-height:none;overflow-y:auto;margin:6px 0}
 #hPlayers li.empty{grid-column:1/-1;font-size:16px;font-weight:normal;min-height:0}
+
+/* Wrong final card: shake red, then shrink away before the cards deal back in */
+.card.wrong{animation:card-wrong .9s ease-in forwards;box-shadow:0 0 0 3px #d40000,0 0 18px rgba(212,0,0,.6)}
+@keyframes card-wrong{
+  0%{transform:none}
+  10%{transform:translateX(-10px) rotate(-3deg)}
+  20%{transform:translateX(10px) rotate(3deg)}
+  30%{transform:translateX(-8px) rotate(-2deg)}
+  40%{transform:translateX(6px) rotate(1deg)}
+  55%{transform:none;opacity:1}
+  100%{transform:scale(.4) rotate(12deg);opacity:0}}
+@media (prefers-reduced-motion:reduce){.card.wrong{animation:none}}
+
+/* ---------- Elimination mode ---------- */
+.hearts{letter-spacing:1px;font-size:.9em;white-space:nowrap}
+.sb-row.out{opacity:.5;filter:grayscale(.8)}
+.sb-row.out .sb-fill{background:#999}
+.racer-row.out-elim{opacity:.45}
+.knocked{color:#d40000}

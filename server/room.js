@@ -21,7 +21,8 @@ const ROUND_MS = 30000;            // time limit for each round
 const FIRST_BONUS = 100;           // extra points for being first in your group
 const NEXT_MS = 3000;              // countdown on the results before the next round starts by itself
 const OUT_OF_TIME_MS = 1900;       // players' screens show “Out of time!” this long before the results
-const BONK = 500;                  // points the host can take away from a suspected cheat
+const BONK = 500;
+const LIVES = 3;                   // elimination mode: lives each player starts with                  // points the host can take away from a suspected cheat
 const PREC = { '+': 1, '−': 1, '×': 2, '÷': 2 };
 
 // Speed points: 1000 for an instant answer, dropping steadily to 500 at the time limit
@@ -77,7 +78,8 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   const game = {
     phase: 'lobby',          // lobby → countdown → playing → result → … → final
     seq: 0,                  // counts every round ever played (lets screens tell rounds apart)
-    matchRounds: 5,          // rounds in this match (host chooses 1–10)
+    mode: 'points',          // 'points' (most points after N rounds wins) or 'elim' (3 lives, last one standing wins)
+    matchRounds: 5,          // rounds in this match (host chooses 1–10; points mode only)
     cardCount: 4,            // cards per puzzle (host chooses 4 or 5); the target is always 24
     matchRound: 0,           // round number within the current match (0 = not started)
     hostSocket: null,        // socket.id of the host screen (not a player)
@@ -99,7 +101,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   const hostId = () => game.hostSocket;
 
   function newPlayer(name, emoji) {
-    const p = { name, emoji: cleanEmoji(emoji), points: 0, wins: 0, gained: 0, bonks: 0, group: null, gaveUp: false, solved: false };
+    const p = { name, emoji: cleanEmoji(emoji), lives: LIVES, out: false, outRound: 0, lostLife: false, points: 0, wins: 0, gained: 0, bonks: 0, group: null, gaveUp: false, solved: false };
     resetBoardShape(p);
     return p;
   }
@@ -114,6 +116,8 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       round: game.seq,
       matchRound: game.matchRound,
       matchRounds: game.matchRounds,
+      mode: game.mode,
+      maxLives: LIVES,
       cardCount: game.cardCount,
       hostId: hostId(),
       hostConnected: !!game.hostSocket,
@@ -126,7 +130,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       timeLeftMs: game.phase === 'playing' ? Math.max(0, game.endsAt - Date.now()) : null,
       nextInMs: game.phase === 'result' && game.nextAt ? Math.max(0, game.nextAt - Date.now()) : null,   // auto-start of the next round
       players: [...game.players.entries()].map(([id, p]) => ({
-        id, name: p.name, emoji: p.emoji, points: p.points, wins: p.wins, gained: p.gained, bonks: p.bonks,
+        id, name: p.name, emoji: p.emoji, lives: p.lives, out: p.out, outRound: p.outRound, lostLife: p.lostLife, points: p.points, wins: p.wins, gained: p.gained, bonks: p.bonks,
         group: p.group, gaveUp: p.gaveUp, solved: p.solved,
         // Shape of the player's board for their opponents' face-down view (never the numbers)
         layout: p.layout, sel: p.sel, moveSeq: p.moveSeq, lastMove: p.lastMove,
@@ -173,15 +177,15 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     game.pairCounts.clear();
     game.groups = [];
     game.result = null;
-    for (const p of [...game.players.values(), ...game.departed.values()]) { p.points = 0; p.wins = 0; p.gained = 0; p.bonks = 0; p.group = null; p.gaveUp = false; p.solved = false; resetBoardShape(p); }
+    for (const p of [...game.players.values(), ...game.departed.values()]) { p.points = 0; p.wins = 0; p.gained = 0; p.bonks = 0; p.lives = LIVES; p.out = false; p.outRound = 0; p.lostLife = false; p.group = null; p.gaveUp = false; p.solved = false; resetBoardShape(p); }
   }
 
   function startRound() {
     clearTimers();
     if (game.matchRound === 0) resetMatch();
-    const ids = [...game.players.keys()];
+    const ids = [...game.players.entries()].filter(([, p]) => !(game.mode === 'elim' && p.out)).map(([id]) => id);
     game.groups = drawGroups(ids).map((members, i) => ({ id: i, members, winnerId: null, solvers: [], done: false }));
-    for (const p of game.players.values()) { p.group = null; p.gaveUp = false; p.solved = false; p.gained = 0; resetBoardShape(p); }
+    for (const p of game.players.values()) { p.group = null; p.gaveUp = false; p.solved = false; p.gained = 0; p.lostLife = false; resetBoardShape(p); }
     game.groups.forEach(g => g.members.forEach(id => { game.players.get(id).group = g.id; }));
 
     game.phase = 'countdown';
@@ -227,8 +231,15 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       solution: game.puzzle.sols[0]?.e || null,
     };
     game.result.reason = endMatch ? 'host' : reason;
-    game.result.endedEarly = endMatch && game.matchRound < game.matchRounds;
-    game.phase = endMatch || game.matchRound >= game.matchRounds ? 'final' : 'result';
+    if (game.mode === 'elim') {
+      if (!endMatch) takeLives();
+      game.result.alive = alivePlayers().length;
+      game.result.endedEarly = endMatch && game.result.alive > 1;
+      game.phase = endMatch || game.result.alive <= 1 ? 'final' : 'result';
+    } else {
+      game.result.endedEarly = endMatch && game.matchRound < game.matchRounds;
+      game.phase = endMatch || game.matchRound >= game.matchRounds ? 'final' : 'result';
+    }
     // Between rounds: once the results are on screen, count down 3 seconds and start the next round
     game.nextAt = 0;
     if (game.phase === 'result') {
@@ -237,6 +248,35 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       game.timers.push(setTimeout(() => { if (game.phase === 'result' && game.players.size >= 2) startRound(); }, wait));
     }
     broadcast();
+  }
+
+  /* ---------- Elimination mode ---------- */
+  const alivePlayers = () => [...game.players.values()].filter(p => !p.out);
+  // End of a round: in each group the winner (first to make 24) keeps their lives and everyone
+  // else loses one. If nobody in a group made 24, everyone in it loses one. A player on 0 lives is out.
+  function takeLives() {
+    const before = alivePlayers().length;
+    const knocked = [];
+    for (const g of game.groups) for (const id of g.members) {
+      const p = game.players.get(id);
+      if (!p || p.out || id === g.winnerId) continue;
+      p.lives -= 1; p.lostLife = true;
+      if (p.lives <= 0) { p.lives = 0; p.out = true; p.outRound = game.matchRound; knocked.push(p); }
+    }
+    // Never knock out everyone at once: if this round would leave nobody, those players stay in on one life
+    if (before > 0 && alivePlayers().length === 0) {
+      for (const p of knocked) { p.out = false; p.lives = 1; p.outRound = 0; }
+      game.result.wipeout = true;
+    }
+    game.result.knockedOut = knocked.filter(p => p.out).map(p => p.name);
+  }
+  // A player left or was bonked out: if only one player is still in, the match is over
+  function checkLastStanding() {
+    if (game.mode !== 'elim' || game.phase === 'lobby' || game.phase === 'final') return false;
+    if (alivePlayers().length > 1) return false;
+    if (game.phase === 'countdown' || game.phase === 'playing') endRound(true);
+    else { clearTimers(); game.phase = 'final'; if (game.result) game.result.endedEarly = false; broadcast(); }
+    return true;
   }
 
   function backToLobby(message) {
@@ -303,7 +343,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       if (game.phase === 'countdown' || game.phase === 'playing') endRound(true);
       else if (game.phase === 'result') {
         clearTimers();
-        game.result.endedEarly = game.matchRound < game.matchRounds;
+        game.result.endedEarly = game.mode === 'elim' ? alivePlayers().length > 1 : game.matchRound < game.matchRounds;
         game.phase = 'final';
         broadcast();
       }
@@ -315,6 +355,21 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       if (game.phase === 'lobby') return reply?.({ ok: false, error: 'There are no scores to bonk yet.' });
       const p = game.players.get(id);
       if (!p) return reply?.({ ok: false, error: 'That player has left.' });
+      if (game.mode === 'elim') {
+        // Elimination: a bonk takes a life instead of points (and can knock a player out)
+        if (p.out) return reply?.({ ok: false, error: `${p.name} is already out.` });
+        p.lives -= 1; p.bonks += 1;
+        if (p.lives <= 0) { p.lives = 0; p.out = true; p.outRound = game.matchRound; }
+        reply?.({ ok: true, life: true });
+        broadcast();
+        emit('bonked', { id, name: p.name, life: true, out: p.out });
+        if (p.out) {
+          const g = p.group !== null && game.groups[p.group];
+          if (g && game.phase === 'playing') { p.gaveUp = true; groupFinishedCheck(g); }
+          if (!checkLastStanding()) { broadcast(); checkRoundOver(); }
+        }
+        return;
+      }
       const taken = Math.min(BONK, p.points);
       p.points -= taken; p.bonks += 1;
       reply?.({ ok: true, taken });
@@ -348,6 +403,13 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       if (![4, 5].includes(c)) return;
       game.cardCount = c;
       for (const p of game.players.values()) resetBoardShape(p);
+      broadcast();
+    });
+
+    // Host only, in the waiting room: points match or elimination (3 lives, last one standing)
+    socket.on('setMode', m => {
+      if (!isHost() || game.phase !== 'lobby') return;
+      game.mode = m === 'elim' ? 'elim' : 'points';
       broadcast();
     });
 
@@ -413,6 +475,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       if (game.phase !== 'lobby') game.departed.set(p.name.toLowerCase(), p);   // may rejoin with the same name
       emit('notice', `${p.name} left the game.`);
       if (game.phase !== 'lobby' && game.players.size < 2) return backToLobby('Not enough players left, so the match has ended.');
+      if (checkLastStanding()) return;
       if (p.group !== null && game.groups[p.group]) groupFinishedCheck(game.groups[p.group]);
       broadcast();
       checkRoundOver();

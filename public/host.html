@@ -56,12 +56,18 @@
           <fieldset class="host-settings">
             <legend>Match settings</legend>
             <div class="match-len">
+              <label for="hMode">Game mode:</label>
+              <select id="hMode">
+                <option value="points" selected>Points</option><option value="elim">Elimination (3 lives)</option>
+              </select>
+            </div>
+            <div class="match-len">
               <label for="hCardCount">Cards:</label>
               <select id="hCardCount">
                 <option value="4" selected>4 cards</option><option value="5">5 cards</option>
               </select>
             </div>
-            <div class="match-len">
+            <div class="match-len" id="hRoundsRow">
               <label for="hRounds">Match length:</label>
               <select id="hRounds">
                 <option value="1">1 round</option><option value="2">2 rounds</option><option value="3">3 rounds</option>
@@ -70,7 +76,7 @@
                 <option value="10">10 rounds</option>
               </select>
             </div>
-            <p class="hint-note">Every card must be used to make 24.</p>
+            <p class="hint-note" id="hModeNote">Every card must be used to make 24.</p>
             <p class="hint-note">The lobby closes when you press Start Match, so the code can’t be used by another class. Players who drop out can rejoin by typing the same name.</p>
           </fieldset>
         </div>
@@ -151,9 +157,10 @@
     <div class="dialog-body">
       <ol>
         <li>Show this screen on the projector. Players open the address shown and type their names.</li>
-        <li>Choose the match length and press <b>Start Match</b>.</li>
+        <li>Choose the game mode (Points or Elimination), the cards and, for Points, the match length. Then press <b>Start Match</b>.</li>
         <li>Each round, players are drawn into pairs (one group of three when there's an odd number) and race the same cards (4 or 5, your choice). A round lasts at most 30 seconds.</li>
-        <li>Everyone who makes 24 scores 1,000 points for an instant answer, dropping to 500 at 30 seconds. The first in each group gets 100 bonus points.</li>
+        <li><b>Points:</b> everyone who makes 24 scores 1,000 points for an instant answer, dropping to 500 at 30 seconds. The first in each group gets 100 bonus points.</li>
+        <li><b>Elimination:</b> everyone has 3 lives. The first in each group to make 24 keeps their lives; everyone else in the group loses one (all of them if nobody makes 24). Bonk takes a life. The last player standing wins.</li>
         <li>Once the match starts the lobby is closed: new players can’t join, but anyone who drops out can rejoin with the same name and keeps their score.</li>
         <li>Watch each race and the live scoreboard here. After each round's results, the next round starts by itself after a 3-second countdown.</li>
       </ol>
