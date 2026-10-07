@@ -456,6 +456,15 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 .emoji-opt:hover,.emoji-opt:focus-visible{background:#e8eefc;border-color:#316ac5;outline:none}
 .emoji-opt[aria-pressed="true"]{background:#c5d5f5;border-color:#316ac5}
 .emo{display:inline-block;margin-right:.3em;font-style:normal;line-height:1;transform-origin:50% 90%}
+/* Always: a gentle sway so the emoji feel alive */
+.emo.idle{animation:emo-idle 2.4s ease-in-out infinite}
+@keyframes emo-idle{
+  0%,100%{transform:translateY(0) rotate(0)}
+  25%{transform:translateY(-6%) rotate(-5deg)}
+  50%{transform:translateY(0) rotate(0)}
+  75%{transform:translateY(-3%) rotate(5deg)}}
+.emoji-opt .emo,.emoji-btn .emo{margin:0}
+.emoji-opt:hover .emo{animation-duration:.8s}
 /* Won: a happy bounce that keeps going */
 .emo.win{animation:emo-win 1.1s ease-in-out infinite}
 @keyframes emo-win{
@@ -477,5 +486,5 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 .step-emo .emo{margin:0}
 .opp-name .emo{margin-right:.25em}
 @media (prefers-reduced-motion:reduce){
-  .emo.win,.emo.lose{animation:none}
+  .emo.win,.emo.lose,.emo.idle{animation:none}
   .emo.lose{filter:grayscale(1);opacity:.7}}

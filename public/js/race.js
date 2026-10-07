@@ -42,10 +42,10 @@ try{
   $('nameInput').value=sessionStorage.getItem('make24-name')||'';
 }catch{}
 // Emoji picker: a button showing the chosen emoji opens a grid of big emoji (remembers the last choice)
-function setEmoji(e){$('emojiInput').value=e;$('emojiBtn').textContent=e;$('emojiBtn').setAttribute('aria-label',`Your emoji: ${(EMOJIS.find(x=>x[0]===e)||[])[1]||''}. Change`);
+function setEmoji(e){$('emojiInput').value=e;$('emojiBtn').innerHTML=`<span class="emo idle">${e}</span>`;$('emojiBtn').setAttribute('aria-label',`Your emoji: ${(EMOJIS.find(x=>x[0]===e)||[])[1]||''}. Change`);
   $('emojiGrid').querySelectorAll('.emoji-opt').forEach(b=>b.setAttribute('aria-pressed',b.dataset.e===e))}
 $('emojiGrid').innerHTML=[...new Set(EMOJIS.map(x=>x[2]))].map(g=>`<div class="emoji-group">${g}</div>`+
-  EMOJIS.filter(x=>x[2]===g).map(([e,n])=>`<button type="button" class="emoji-opt" data-e="${e}" title="${n}" aria-label="${n}">${e}</button>`).join('')).join('');
+  EMOJIS.filter(x=>x[2]===g).map(([e,n])=>`<button type="button" class="emoji-opt" data-e="${e}" title="${n}" aria-label="${n}"><span class="emo idle" style="animation-delay:-${Math.round(Math.random()*2400)}ms">${e}</span></button>`).join('')).join('');
 function openGrid(open){$('emojiGrid').hidden=!open;$('emojiBtn').setAttribute('aria-expanded',open);
   if(open)($('emojiGrid').querySelector('[aria-pressed="true"]')||$('emojiGrid').querySelector('.emoji-opt')).focus()}
 $('emojiBtn').onclick=e=>{e.stopPropagation();openGrid($('emojiGrid').hidden)};

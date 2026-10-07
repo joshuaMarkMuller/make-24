@@ -50,13 +50,15 @@ if (typeof window !== 'undefined') {
   // Screens redraw often; a negative animation-delay keeps each animation running smoothly
   // from when it first started instead of restarting on every redraw.
   const started = new Map();
+  const idleOffset = id => { let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 2400; };
   window.emojiTag = (s, p, extraClass = '') => {
     if (!p) return '';
     const mood = emojiMood(s, p.id);
     const key = `${s && s.round}|${p.id}|${mood}`;
     if (mood && !started.has(key)) started.set(key, performance.now());
     if (started.size > 500) started.clear();
-    const delay = mood ? ` style="animation-delay:-${Math.round(performance.now() - started.get(key))}ms"` : '';
-    return `<span class="emo${mood ? ' ' + mood : ''}${extraClass ? ' ' + extraClass : ''}"${delay} aria-hidden="true">${p.emoji || ''}</span>`;
+    // No win or lose: a gentle idle sway, each player slightly out of step with the others
+    const ms = mood ? performance.now() - started.get(key) : performance.now() + idleOffset(p.id);
+    return `<span class="emo ${mood || 'idle'}${extraClass ? ' ' + extraClass : ''}" style="animation-delay:-${Math.round(ms)}ms" aria-hidden="true">${p.emoji || ''}</span>`;
   };
 }

@@ -53,18 +53,18 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Energy** | **≈ 12.7 kWh** | 5.2–24.7 kWh | about 127 boils of a full electric kettle (52–247 boils) |
-| **Water** | **≈ 52 litres** | 5–101 litres | about one short shower |
-| **Cost** | **≈ A$3.79** | A$1.50–7.35 | energy ≈ A$3.58 plus water ≈ A$0.20, at Victorian household prices |
+| **Energy** | **≈ 13.0 kWh** | 5.3–25.2 kWh | about 130 boils of a full electric kettle (53–252 boils) |
+| **Water** | **≈ 53 litres** | 5–103 litres | about one short shower |
+| **Cost** | **≈ A$3.87** | A$1.53–7.51 | energy ≈ A$3.66 plus water ≈ A$0.21, at Victorian household prices |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
 | Activity | Share | Energy |
 |---|---|---|
-| Reading and writing project files | 31% | ≈ 3.9 kWh |
+| Reading and writing project files | 30% | ≈ 3.9 kWh |
 | Running code and tests | 28% | ≈ 3.6 kWh |
-| Claude's built-in instructions (re-read every step) | 22% | ≈ 2.8 kWh |
-| Conversation and replies | 12% | ≈ 1.5 kWh |
+| Claude's built-in instructions (re-read every step) | 22% | ≈ 2.9 kWh |
+| Conversation and replies | 12% | ≈ 1.6 kWh |
 | Syncing files to the computer | 7% | ≈ 0.9 kWh |
 
 **How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
@@ -75,6 +75,7 @@ Where the energy went (approximate share of the estimate; water follows the same
 - **Split between activities:** weighted by cost, so re-reading earlier conversation counts for less than new reading or writing.
 
 ## Change log
+- **2026-10-07** All emoji now gently sway all the time: in the picker grid, on the picker button and next to names on every screen, each slightly out of step with the others. The win bounce and lose droop take over when they happen. Devices set to reduce motion show them still.
 - **2026-10-07** Emoji picker is now a small button next to the name box. Tapping it opens a large grid of emoji (grouped into Faces and Animals) in the middle of the screen; picking one closes it. Replaces the dropdown.
 - **2026-10-07** Removed the devil emoji, leaving 40: 19 faces and 21 animals.
 - **2026-10-07** Emoji list: added 8 more faces (😭 😱 🙄 😤 😠 😈 🤢 🤮) and removed the Food and Other emoji, leaving 41: 20 faces and 21 animals.
