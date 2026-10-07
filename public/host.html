@@ -46,32 +46,36 @@
     <section class="dialog felt-dialog host-lobby" id="hostLobby" hidden>
       <div class="titlebar small"><span class="title">Waiting Room</span></div>
       <div class="dialog-body">
-        <h2>Join the race</h2>
-        <p>On a phone, tablet or laptop, go to:</p>
-        <div class="join-url" id="joinUrl">…</div>
-        <p>and enter the lobby code:</p>
-        <div class="lobby-code" id="lobbyCode">·····</div>
-        <p class="hint-note">The lobby closes when you press Start Match, so the code can’t be used by another class. Players who drop out can rejoin by typing the same name.</p>
-        <h3 id="hCount">No players yet</h3>
-        <p class="group-preview" id="hPreview"></p>
-        <p class="hint-note">Click ✎ next to a name to change it.</p>
+        <div class="code-row">
+          <div class="code-box">
+            <p class="step-label">On a phone, tablet or laptop, go to:</p>
+            <div class="join-url" id="joinUrl">…</div>
+            <p class="step-label">and enter the lobby code:</p>
+            <div class="lobby-code" id="lobbyCode">·····</div>
+          </div>
+          <fieldset class="host-settings">
+            <legend>Match settings</legend>
+            <div class="match-len">
+              <label for="hCardCount">Cards:</label>
+              <select id="hCardCount">
+                <option value="4" selected>4 cards</option><option value="5">5 cards</option>
+              </select>
+            </div>
+            <div class="match-len">
+              <label for="hRounds">Match length:</label>
+              <select id="hRounds">
+                <option value="1">1 round</option><option value="2">2 rounds</option><option value="3">3 rounds</option>
+                <option value="4">4 rounds</option><option value="5" selected>5 rounds</option><option value="6">6 rounds</option>
+                <option value="7">7 rounds</option><option value="8">8 rounds</option><option value="9">9 rounds</option>
+                <option value="10">10 rounds</option>
+              </select>
+            </div>
+            <p class="hint-note">Every card must be used to make 24.</p>
+            <p class="hint-note">The lobby closes when you press Start Match, so the code can’t be used by another class. Players who drop out can rejoin by typing the same name.</p>
+          </fieldset>
+        </div>
+        <div class="count-line"><h3 id="hCount">No players yet</h3><span class="group-preview" id="hPreview"></span><span class="hint-note">Click ✎ next to a name to change it.</span></div>
         <ul class="players" id="hPlayers"></ul>
-        <div class="match-len">
-          <label for="hCardCount">Cards:</label>
-          <select id="hCardCount">
-            <option value="4" selected>4 cards</option><option value="5">5 cards</option>
-          </select>
-          <span class="hint-note">Every card must be used to make 24.</span>
-        </div>
-        <div class="match-len">
-          <label for="hRounds">Match length:</label>
-          <select id="hRounds">
-            <option value="1">1 round</option><option value="2">2 rounds</option><option value="3">3 rounds</option>
-            <option value="4">4 rounds</option><option value="5" selected>5 rounds</option><option value="6">6 rounds</option>
-            <option value="7">7 rounds</option><option value="8">8 rounds</option><option value="9">9 rounds</option>
-            <option value="10">10 rounds</option>
-          </select>
-        </div>
         <div class="dialog-btns"><span class="hint-note" id="hLobbyMsg"></span><button class="xp-btn default" id="hStart">Start Match</button></div>
       </div>
     </section>

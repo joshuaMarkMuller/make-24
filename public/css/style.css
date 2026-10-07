@@ -488,3 +488,35 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 @media (prefers-reduced-motion:reduce){
   .emo.win,.emo.lose,.emo.idle{animation:none}
   .emo.lose{filter:grayscale(1);opacity:.7}}
+
+/* ---------- Host waiting room: code beside the match settings; big centred player names ---------- */
+.code-row{display:flex;align-items:stretch;gap:16px 24px;flex-wrap:wrap}
+.code-box{flex:1 1 380px;min-width:0;display:flex;flex-direction:column}
+.code-box .step-label{margin:0 0 4px}
+.code-box .join-url{margin:0 0 8px}
+#hostLobby .lobby-code{align-self:flex-start;margin:0;font-size:clamp(44px,6vw,84px);padding:4px 22px}
+.count-line{display:flex;align-items:baseline;gap:6px 16px;flex-wrap:wrap;margin-top:12px}
+.count-line h3{margin:0!important}
+.count-line .group-preview{margin:0}
+.code-row p{margin:0 0 2px}
+.host-settings{flex:0 1 330px;margin:0;padding:8px 14px 10px;border:1px solid #aca899;border-radius:4px;display:flex;flex-direction:column;gap:2px}
+.host-settings legend{color:#0046d5;padding:0 4px}
+.host-settings .match-len{margin:4px 0;font-size:15px}
+.host-settings .match-len label{min-width:7.2em}
+.host-settings select{font-size:15px}
+.host-settings .hint-note{margin:2px 0 0}
+#hPlayers{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+#hPlayers li{position:relative;justify-content:center;padding:8px 30px;font-size:20px;font-weight:600;min-height:48px}
+#hPlayers .pname{text-align:center}
+#hPlayers .pname .emo{font-size:26px;vertical-align:-4px;margin-right:.3em}
+#hPlayers .edit-name{position:absolute;right:4px;top:50%;transform:translateY(-50%)}
+#hPlayers li.editing{padding:6px 8px;justify-content:flex-start}
+/* The waiting room always fits the screen: the player list scrolls inside it, so the
+   settings and Start Match stay visible even with 24 players on a small laptop */
+#hostLobby:not([hidden]){width:min(1180px,100%);max-height:100%;display:flex;flex-direction:column}
+#hostLobby .dialog-body{display:flex;flex-direction:column;min-height:0;flex:1 1 auto}
+#hostLobby .dialog-body>*{flex:none}
+#hostLobby h2{margin:0}
+#hostLobby .join-url{padding:4px 14px;font-size:clamp(20px,3vw,38px)}
+#hostLobby .dialog-body>#hPlayers{flex:1 1 auto;min-height:60px;max-height:none;overflow-y:auto;margin:6px 0}
+#hPlayers li.empty{grid-column:1/-1;font-size:16px;font-weight:normal;min-height:0}

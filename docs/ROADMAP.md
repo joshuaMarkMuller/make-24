@@ -53,19 +53,19 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Energy** | **≈ 13.0 kWh** | 5.3–25.2 kWh | about 130 boils of a full electric kettle (53–252 boils) |
-| **Water** | **≈ 53 litres** | 5–103 litres | about one short shower |
-| **Cost** | **≈ A$3.87** | A$1.53–7.51 | energy ≈ A$3.66 plus water ≈ A$0.21, at Victorian household prices |
+| **Energy** | **≈ 14.1 kWh** | 5.8–27.4 kWh | about 141 boils of a full electric kettle (58–274 boils) |
+| **Water** | **≈ 58 litres** | 6–112 litres | about one short shower |
+| **Cost** | **≈ A$4.20** | A$1.66–8.16 | energy ≈ A$3.98 plus water ≈ A$0.23, at Victorian household prices |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
 | Activity | Share | Energy |
 |---|---|---|
-| Reading and writing project files | 30% | ≈ 3.9 kWh |
-| Running code and tests | 28% | ≈ 3.6 kWh |
-| Claude's built-in instructions (re-read every step) | 22% | ≈ 2.9 kWh |
-| Conversation and replies | 12% | ≈ 1.6 kWh |
-| Syncing files to the computer | 7% | ≈ 0.9 kWh |
+| Reading and writing project files | 29% | ≈ 4.1 kWh |
+| Running code and tests | 29% | ≈ 4.1 kWh |
+| Claude's built-in instructions (re-read every step) | 22% | ≈ 3.1 kWh |
+| Conversation and replies | 12% | ≈ 1.7 kWh |
+| Syncing files to the computer | 7% | ≈ 1.0 kWh |
 
 **How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
 
@@ -75,6 +75,8 @@ Where the energy went (approximate share of the estimate; water follows the same
 - **Split between activities:** weighted by cost, so re-reading earlier conversation counts for less than new reading or writing.
 
 ## Change log
+- **2026-10-07** Card sound effects added to the player screen (public/sounds/): a card flick when selecting a card, a long riffle shuffle during the win cascade, and a short shuffle when time runs out. The sounds are original, made for the game, so there are no licence issues. Sound can be switched off in the Game menu. The criteria stay unticked until you've listened to them.
+- **2026-10-07** Host waiting room redesigned: the card and match-length settings sit beside the lobby code, player names and emoji are larger and centred, and the whole waiting room fits on a 1366×768 laptop screen with 24 players. On smaller screens the player list scrolls inside the room, so Start Match always stays visible.
 - **2026-10-07** All emoji now gently sway all the time: in the picker grid, on the picker button and next to names on every screen, each slightly out of step with the others. The win bounce and lose droop take over when they happen. Devices set to reduce motion show them still.
 - **2026-10-07** Emoji picker is now a small button next to the name box. Tapping it opens a large grid of emoji (grouped into Faces and Animals) in the middle of the screen; picking one closes it. Replaces the dropdown.
 - **2026-10-07** Removed the devil emoji, leaving 40: 19 faces and 21 animals.

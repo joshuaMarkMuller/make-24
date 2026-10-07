@@ -84,7 +84,7 @@ socket.on('renamed',name=>{R.me=name;$('youPanel').textContent=`You: ${R.emoji||
 socket.on('round',r=>{
   // Every group gets the same cards; suits are just for looks
   R.nums=r.nums;R.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
-  resetBoard();R.locked=true;hide('resultDlg');stopCascade();clearOpps();clearInterval(R.nextTick);
+  resetBoard();R.locked=true;hide('resultDlg');stopCascade();clearOpps();clearInterval(R.nextTick);SFX.stop('cascade');
   R.deadline=performance.now()+r.countdownMs+r.limitMs;
   if(!R.me)return;
   showScreen('countdown');
@@ -342,6 +342,7 @@ function canPlay(){
 }
 function clickCard(i){
   if(!canPlay())return;
+  SFX.play('select');
   if(R.sel===null){R.sel=i;renderCards();sendProgress();return}
   if(R.sel===i){R.sel=null;R.op=null;renderCards();sendProgress();return}
   if(!R.op){R.sel=i;renderCards();sendProgress();return}
@@ -463,6 +464,7 @@ const OUT_OF_TIME_MS=1900;   // how long the results wait so the player sees it
 function outOfTime(){
   const s=R.state;if(!s||R.timedOutRound===s.round)return;
   R.timedOutRound=s.round;R.timedOutAt=performance.now();
+  SFX.play('timeUp');
   R.locked=true;R.sel=null;R.op=null;stopTimer();
   renderCards();
   setMsg('Out of time!','timeout');
@@ -473,6 +475,7 @@ function stopTimer(){clearInterval(R.tick);$('timer').classList.remove('warn')}
 let cascadeRAF=null,cascadeDone=null;
 function runCascade(onDone){
   const cv=$('cascade'),felt=$('felt');
+  SFX.play('cascade');
   if(reduceMotion()||!document.querySelector('.slot')){if(onDone)onDone();return}
   const fr=felt.getBoundingClientRect();cv.width=fr.width;cv.height=fr.height;cv.classList.add('on');
   const ctx=cv.getContext('2d');
@@ -504,7 +507,9 @@ document.querySelectorAll('.menu-title').forEach(t=>{
 });
 document.addEventListener('click',closeMenus);
 document.querySelectorAll('[data-about]').forEach(b=>b.onclick=e=>{e.stopPropagation();closeMenus();show('aboutDlg')});
+$('soundLabel').textContent=`Sound: ${SFX.on?'On':'Off'}`;
 const ACTIONS={undo,reset,giveUp,howto:()=>show('helpDlg'),
+  sound:()=>{SFX.setOn(!SFX.on);$('soundLabel').textContent=`Sound: ${SFX.on?'On':'Off'}`},
   fullscreen:()=>{(document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()).catch(()=>{})}};
 document.querySelectorAll('.menu-list button').forEach(b=>b.onclick=()=>{closeMenus();ACTIONS[b.dataset.act]()});
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>hide(b.dataset.close));
