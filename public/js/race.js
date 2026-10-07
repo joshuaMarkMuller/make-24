@@ -41,6 +41,10 @@ try{
   $('codeInput').value=cleanCode(new URLSearchParams(location.search).get('code')||sessionStorage.getItem('make24-code'));
   $('nameInput').value=sessionStorage.getItem('make24-name')||'';
 }catch{}
+// Emoji dropdown: remembers the last choice, otherwise starts on a random one
+$('emojiInput').innerHTML=EMOJIS.map(([e,n])=>`<option value="${e}">${e} ${n}</option>`).join('');
+try{$('emojiInput').value=sessionStorage.getItem('make24-emoji')||randomEmoji()}catch{$('emojiInput').value=randomEmoji()}
+if(!$('emojiInput').value)$('emojiInput').value=randomEmoji();
 $('codeInput').oninput=()=>{const c=cleanCode($('codeInput').value);if($('codeInput').value!==c)$('codeInput').value=c};
 $('joinForm').onsubmit=e=>{
   e.preventDefault();
@@ -48,11 +52,12 @@ $('joinForm').onsubmit=e=>{
   if(code.length!==5){$('joinMsg').textContent='Type the 5-character lobby code from the host\'s screen.';$('codeInput').focus();return}
   if(!name){$('joinMsg').textContent='Type your name first.';$('nameInput').focus();return}
   $('joinMsg').textContent='Joining…';
-  socket.emit('join',{code,name},res=>{
+  const emoji=$('emojiInput').value;
+  socket.emit('join',{code,name,emoji},res=>{
     if(!res.ok){$('joinMsg').textContent=res.error;return}
     $('joinMsg').textContent='';
-    R.me=res.name;R.myId=res.id;R.code=res.code;$('youPanel').textContent='You: '+R.me;
-    try{sessionStorage.setItem('make24-code',res.code);sessionStorage.setItem('make24-name',name)}catch{}
+    R.me=res.name;R.emoji=res.emoji;R.myId=res.id;R.code=res.code;$('youPanel').textContent=`You: ${R.emoji} ${R.me}`;
+    try{sessionStorage.setItem('make24-code',res.code);sessionStorage.setItem('make24-name',name);sessionStorage.setItem('make24-emoji',res.emoji)}catch{}
     try{history.replaceState(null,'','?code='+res.code)}catch{}
     document.title=`Make 24 Race · ${res.code}`;
     render();
@@ -67,7 +72,7 @@ socket.on('disconnect',()=>{$('status').textContent='Connection lost. Refresh th
 socket.on('notice',t=>{R.notice=t;R.noticeAt=Date.now();render()});
 socket.on('state',s=>{R.state=s;R.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;render()});
 // The host changed my name in the waiting room
-socket.on('renamed',name=>{R.me=name;$('youPanel').textContent='You: '+name;R.notice=`The host changed your name to ${name}.`;R.noticeAt=Date.now();render()});
+socket.on('renamed',name=>{R.me=name;$('youPanel').textContent=`You: ${R.emoji||''} ${name}`;R.notice=`The host changed your name to ${name}.`;R.noticeAt=Date.now();render()});
 socket.on('round',r=>{
   // Every group gets the same cards; suits are just for looks
   R.nums=r.nums;R.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
@@ -118,7 +123,7 @@ function render(){
   if(s.phase==='lobby'||sittingOut){
     stopTimer();showScreen('lobbyPanel');if(!sittingOut){hide('resultDlg');stopCascade()}
     const list=$('playerList');
-    list.innerHTML=s.players.map(p=>`<li><span>${esc(p.name)}${p.id===R.myId?'<span class="you">(you)</span>':''}</span>`+
+    list.innerHTML=s.players.map(p=>`<li><span>${emojiTag(s,p)}${esc(p.name)}${p.id===R.myId?'<span class="you">(you)</span>':''}</span>`+
       `</li>`).join('')||'<li class="empty">Nobody has joined yet.</li>';
     $('roundsSel').value=String(s.matchRounds);$('roundsSel').disabled=true;
     $('roundsNote').textContent=`Chosen by the host · ${s.cardCount}-card game.`;
@@ -257,7 +262,7 @@ function renderScoreRows(s,grow,bonkId,bonkTaken){
     const bonked=p.id===bonkId;
     return `<div class="sb-row${p.id===R.myId?' me':''}${i===0&&!tie&&max>0?' lead':''}${bonked?' bonked':''}">`+
       `<span class="sb-rank">${tied?rank+'=':rank}</span>`+
-      `<span class="sb-name"><span class="sb-line"><b>${esc(p.name)}</b>${p.id===R.myId?' <span class="you">(you)</span>':''}</span><small>${p.wins} race${p.wins===1?'':'s'} won${p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:''}</small></span>`+
+      `<span class="sb-name"><span class="sb-line">${emojiTag(s,p)}<b>${esc(p.name)}</b>${p.id===R.myId?' <span class="you">(you)</span>':''}</span><small>${p.wins} race${p.wins===1?'':'s'} won${p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:''}</small></span>`+
       `<span class="sb-track"><span class="sb-fill" data-to="${pct(p.points)}" style="width:${pct(before)}%"></span></span>`+
       `<span class="sb-pts"><span class="sb-num" data-from="${before}" data-to="${p.points}">${before.toLocaleString()}</span>`+
       `${bonked?`<span class="gain minus">−${bonkTaken}</span>`:grow&&p.gained?`<span class="gain">+${p.gained}</span>`:''}</span>`+
@@ -401,7 +406,7 @@ function renderOpps(opps,s,group){
 }
 function renderOpp(o,opp,s,group){
   if(o.animating){o.pending=[opp,s,group];return}
-  o.el.querySelector('.opp-name').textContent=opp.name;
+  o.el.querySelector('.opp-name').innerHTML=emojiTag(s,opp)+esc(opp.name);
   o.el.classList.toggle('gave-up',!!opp.gaveUp);
   const oppWon=!!opp.solved;
   const first=!!group&&group.winnerId===opp.id;

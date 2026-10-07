@@ -440,3 +440,30 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
   .cards.timeout .card{animation:none;filter:grayscale(1) brightness(.55)}
   #msg.timeout{animation:none}
 }
+
+/* ---------- Player emoji (picked when joining) ---------- */
+.emoji-select{font-size:18px;padding:2px 4px;margin-right:6px;vertical-align:middle;max-width:9.5em}
+.emo{display:inline-block;margin-right:.3em;font-style:normal;line-height:1;transform-origin:50% 90%}
+/* Won: a happy bounce that keeps going */
+.emo.win{animation:emo-win 1.1s ease-in-out infinite}
+@keyframes emo-win{
+  0%,100%{transform:translateY(0) rotate(0) scale(1)}
+  20%{transform:translateY(-35%) rotate(-12deg) scale(1.2)}
+  40%{transform:translateY(0) rotate(0) scale(1)}
+  60%{transform:translateY(-18%) rotate(12deg) scale(1.1)}
+  80%{transform:translateY(0) rotate(0) scale(1)}}
+/* Lost: a sad wobble that droops and greys out, then stays drooped */
+.emo.lose{animation:emo-lose 1.6s ease-in-out 1 forwards}
+@keyframes emo-lose{
+  0%{transform:none;filter:none}
+  15%{transform:rotate(-14deg)}
+  30%{transform:rotate(12deg)}
+  45%{transform:rotate(-8deg)}
+  60%{transform:rotate(5deg)}
+  100%{transform:translateY(12%) rotate(-18deg) scale(.85);filter:grayscale(1);opacity:.7}}
+.step-emo{font-size:clamp(28px,3.4vw,48px);line-height:1.1;text-align:center}
+.step-emo .emo{margin:0}
+.opp-name .emo{margin-right:.25em}
+@media (prefers-reduced-motion:reduce){
+  .emo.win,.emo.lose{animation:none}
+  .emo.lose{filter:grayscale(1);opacity:.7}}

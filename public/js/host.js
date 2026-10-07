@@ -108,7 +108,7 @@ function renderPlayerList(s){
   list.innerHTML=s.players.map(p=>p.id===H.editing
     ?`<li data-id="${esc(p.id)}" class="editing"><form class="rename"><input type="text" maxlength="16" value="${esc(p.name)}" aria-label="New name for ${esc(p.name)}">`+
       `<button class="xp-btn" type="submit">Save</button><button class="xp-btn" type="button" data-cancel>Cancel</button></form></li>`
-    :`<li data-id="${esc(p.id)}"><span class="pname">${esc(p.name)}</span><button class="edit-name" title="Change ${esc(p.name)}'s name" aria-label="Change ${esc(p.name)}'s name">✎</button></li>`
+    :`<li data-id="${esc(p.id)}"><span class="pname">${emojiTag(s,p)}${esc(p.name)}</span><button class="edit-name" title="Change ${esc(p.name)}'s name" aria-label="Change ${esc(p.name)}'s name">✎</button></li>`
   ).join('')||'<li class="empty">Players will appear here as they join.</li>';
   const form=list.querySelector('form.rename');
   if(form){
@@ -208,7 +208,7 @@ function renderRaces(s,res){
       else if(p&&p.gaveUp)detail='gave up';
       else if(res)detail='—';
       else{const n=p&&p.layout?p.layout.length:s.cardCount,left=p&&p.layout?p.layout.filter(Boolean).length:n;detail=`<span class="pips">${'●'.repeat(left)}${'○'.repeat(n-left)}</span>`}
-      return `<div class="racer-row${solved?' solved':''}${p&&p.gaveUp?' out':''}"><span class="racer${first?' won':''}">${first?'★ ':solved?'✓ ':''}${esc(nameOf(id))}</span><span class="racer-detail">${detail}</span></div>`;
+      return `<div class="racer-row${solved?' solved':''}${p&&p.gaveUp?' out':''}"><span class="racer${first?' won':''}">${first?'★ ':solved?'✓ ':''}${emojiTag(s,p)}${esc(nameOf(id))}</span><span class="racer-detail">${detail}</span></div>`;
     }).join('');
     const anySolved=g.solvers?g.solvers.length>0:g.members.some(id=>{const p=s.players.find(q=>q.id===id);return p&&p.solved});
     const status=res||g.done?'':'<div class="race-status">Racing<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>';
@@ -239,7 +239,7 @@ function renderScores(s,rows){
     const note=`${p.wins} race${p.wins===1?'':'s'} won`+(p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:'');
     return `<div class="sb-row${i===0&&max>0&&!rows.slice(1).some(same)?' lead':''}${bk.cls}" data-id="${esc(p.id)}">`+
       `<span class="sb-rank">${tied?rank+'=':rank}</span>`+
-      `<span class="sb-name"${bk.style}><span class="sb-line"><b>${esc(p.name)}</b></span><small>${note}</small></span>`+
+      `<span class="sb-name"${bk.style}><span class="sb-line">${emojiTag(s,p)}<b>${esc(p.name)}</b></span><small>${note}</small></span>`+
       `<span class="sb-track"${bk.style}><span class="sb-fill" data-id="${esc(p.id)}" data-to="${pct(p.points)}" style="width:${from}%"></span></span>`+
       `<span class="sb-pts">${p.points.toLocaleString()}${tag}`+
       `<button class="bonk-btn" data-id="${esc(p.id)}" title="Bonk ${esc(p.name)}: take ${500} points" aria-label="Bonk ${esc(p.name)}">Bonk</button></span>`+
@@ -276,7 +276,7 @@ function renderPodium(s,rows){
     if(!p)return `<div class="step empty step-${slot}"></div>`;
     const place=placeOf(p);
     return `<div class="step step-${slot} place-${Math.min(place,3)}">`+
-      `<div class="step-name">${esc(p.name)}</div><div class="step-score">${p.points.toLocaleString()}</div>`+
+      `<div class="step-emo">${emojiTag(s,place===1?p:{...p,id:'podium-'+p.id})}</div><div class="step-name">${esc(p.name)}</div><div class="step-score">${p.points.toLocaleString()}</div>`+
       `<div class="step-block"><span class="step-place">${ordinal(place)}</span></div></div>`;
   };
   // Classic order: 2nd on the left, 1st in the middle, 3rd on the right

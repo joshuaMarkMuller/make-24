@@ -6,7 +6,7 @@
 | 2 | Head-to-head over Wi-Fi | Complete |
 | 3 | 10-round match | Complete |
 | 4 | Whole class (up to 24) | Complete |
-| 5 | Sound effects | Not started |
+| 5 | Sound effects and visuals | In progress |
 | 6 | Online with lobby codes | In progress |
 | 7 | Real-world testing | Not started |
 
@@ -31,7 +31,8 @@
 - [x] All Stage 3 functionality still works with 24 players
 - [x] The host doesn't play: the host screen displays the scores and moderates the game
 
-## Stage 5: Sound effects
+## Stage 5: Sound effects and visuals
+- [x] Players can select an emoji, shown next to their name, that animates when they win or lose
 - [ ] A sound plays when a player selects a card
 - [ ] A sound plays during the card cascade
 - [ ] A sound plays when time runs out
@@ -52,18 +53,18 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Energy** | **≈ 11.2 kWh** | 4.6–21.8 kWh | about 112 boils of a full electric kettle (46–218 boils) |
-| **Water** | **≈ 46 litres** | 5–89 litres | about one short shower |
-| **Cost** | **≈ A$3.35** | A$1.32–6.50 | energy ≈ A$3.17 plus water ≈ A$0.18, at Victorian household prices |
+| **Energy** | **≈ 12.0 kWh** | 4.9–23.2 kWh | about 120 boils of a full electric kettle (49–232 boils) |
+| **Water** | **≈ 49 litres** | 5–95 litres | about one short shower |
+| **Cost** | **≈ A$3.57** | A$1.41–6.92 | energy ≈ A$3.37 plus water ≈ A$0.19, at Victorian household prices |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
 | Activity | Share | Energy |
 |---|---|---|
-| Reading and writing project files | 32% | ≈ 3.6 kWh |
-| Running code and tests | 26% | ≈ 2.9 kWh |
-| Claude's built-in instructions (re-read every step) | 22% | ≈ 2.5 kWh |
-| Conversation and replies | 12% | ≈ 1.3 kWh |
+| Reading and writing project files | 31% | ≈ 3.7 kWh |
+| Running code and tests | 27% | ≈ 3.2 kWh |
+| Claude's built-in instructions (re-read every step) | 22% | ≈ 2.6 kWh |
+| Conversation and replies | 12% | ≈ 1.4 kWh |
 | Syncing files to the computer | 7% | ≈ 0.8 kWh |
 
 **How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
@@ -74,6 +75,8 @@ Where the energy went (approximate share of the estimate; water follows the same
 - **Split between activities:** weighted by cost, so re-reading earlier conversation counts for less than new reading or writing.
 
 ## Change log
+- **2026-10-07** Stage 5 renamed to Sound effects and visuals, with a new criterion for player emoji (already done).
+- **2026-10-07** Player emoji: students pick one of 30 classroom-friendly emoji from a dropdown when joining. It shows next to their name on every screen (waiting room, races, scoreboards, opponent panel, podium), bounces when they win their race or the match, and droops and greys out when they lose. The server only accepts emoji from the list.
 - **2026-10-07** The roadmap is no longer published to GitHub: both copies are in .gitignore and the README no longer links to it.
 - **2026-10-07** Added Stage 5: sound effects (selecting a card, the card cascade, and time running out). Online with lobby codes is now Stage 6 and real-world testing is Stage 7; earlier change-log entries use the old numbers.
 - **2026-10-07** Host final results: the Change Settings and New Match buttons now sit in a row at the bottom of the scoreboard, so they no longer cover any scores or the podium.

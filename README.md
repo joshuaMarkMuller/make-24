@@ -17,10 +17,12 @@ Open `public/index.html` in a browser. No server or internet needed.
 ## Class race
 
 1. The teacher opens the **host screen** (`/host.html`), which shows a lobby code.
-2. Up to 24 students open the game's website, type the code and their name.
+2. Up to 24 students open the game's website, type the code, pick an emoji and type their name.
 3. The teacher chooses the number of cards (4 or 5) and rounds (1–10), then presses **Start Match**.
 
 Each round, students race in pairs (plus one group of three if needed) with the same cards. Rounds last 30 seconds and the next one starts by itself. Faster answers score more points, with a bonus for finishing first in your group.
+
+Each player's emoji shows next to their name. It bounces when they win their race (or the match) and droops when they lose.
 
 The lobby closes when the match starts. Students who drop out can rejoin with the same name.
 

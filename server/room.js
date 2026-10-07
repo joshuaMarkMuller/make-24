@@ -12,6 +12,7 @@
  */
 const crypto = require('crypto');
 const { makePuzzle } = require('../public/js/solver.js');
+const { cleanEmoji } = require('../public/js/emoji.js');
 
 const MAX_PLAYERS = 24;
 const MAX_ROUNDS = 10;
@@ -97,8 +98,8 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   const emit = (event, data) => io.to(code).emit(event, data);
   const hostId = () => game.hostSocket;
 
-  function newPlayer(name) {
-    const p = { name, points: 0, wins: 0, gained: 0, bonks: 0, group: null, gaveUp: false, solved: false };
+  function newPlayer(name, emoji) {
+    const p = { name, emoji: cleanEmoji(emoji), points: 0, wins: 0, gained: 0, bonks: 0, group: null, gaveUp: false, solved: false };
     resetBoardShape(p);
     return p;
   }
@@ -125,7 +126,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       timeLeftMs: game.phase === 'playing' ? Math.max(0, game.endsAt - Date.now()) : null,
       nextInMs: game.phase === 'result' && game.nextAt ? Math.max(0, game.nextAt - Date.now()) : null,   // auto-start of the next round
       players: [...game.players.entries()].map(([id, p]) => ({
-        id, name: p.name, points: p.points, wins: p.wins, gained: p.gained, bonks: p.bonks,
+        id, name: p.name, emoji: p.emoji, points: p.points, wins: p.wins, gained: p.gained, bonks: p.bonks,
         group: p.group, gaveUp: p.gaveUp, solved: p.solved,
         // Shape of the player's board for their opponents' face-down view (never the numbers)
         layout: p.layout, sel: p.sel, moveSeq: p.moveSeq, lastMove: p.lastMove,
@@ -261,7 +262,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   // A player joins. The lobby closes once the match starts (so the code can't be passed to
   // another class): after that, only players who dropped out can rejoin, by typing the same
   // name, and they get their score back. Anyone rejoining mid-round plays from the next round.
-  function addPlayer(socket, name) {
+  function addPlayer(socket, name, emoji) {
     if (game.players.size >= MAX_PLAYERS) return { ok: false, error: `This lobby is full (${MAX_PLAYERS} players).` };
     let player;
     if (game.phase !== 'lobby') {
@@ -272,12 +273,12 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       player.name = uniqueName(player.name);
       player.group = null; player.gaveUp = false; player.solved = false; player.gained = 0; resetBoardShape(player);
       emit('notice', `${player.name} rejoined the game.`);
-    } else player = newPlayer(uniqueName(name));
+    } else player = newPlayer(uniqueName(name), emoji);
     game.players.set(socket.id, player);
     socket.join(code);
     attach(socket);
     broadcast();
-    return { ok: true, name: player.name, id: socket.id, code };
+    return { ok: true, name: player.name, emoji: player.emoji, id: socket.id, code };
   }
 
   /* ---------- Messages from this lobby's host and players ---------- */
