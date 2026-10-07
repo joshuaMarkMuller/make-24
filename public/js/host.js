@@ -181,6 +181,10 @@ function renderGame(s){
     $('hNext').textContent=s.phase==='final'?'New Match':'Next Round';
     $('hNext').disabled=s.players.length<2;
   }
+  // Final results: the buttons sit in a row at the bottom of the scoreboard, so they never cover it
+  const acts=$('hActions'),slot=$('hFinalSlot');
+  if(s.phase==='final'){if(acts.parentElement!==slot)slot.appendChild(acts)}
+  else if(acts.parentElement===slot)$('hPodium').after(acts);
   $('hLobby').hidden=s.phase!=='final';
   $('hEnd').hidden=s.phase==='final';
   if(s.phase==='final')hide('endDlg');

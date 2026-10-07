@@ -342,9 +342,11 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}}
 @media (prefers-reduced-motion:reduce){.step-block,.step-name,.step-score{animation:none}}
 .host-game.final{position:relative}
-.host-game.final .host-actions{position:absolute;right:0;bottom:0;flex-direction:column;align-items:stretch}
+.sb-actions:empty{display:none}
+.sb-actions{margin-top:8px;padding-top:8px;border-top:1px solid #aca899}
+.sb-actions .host-actions{flex-wrap:nowrap}
 .host-game.final #hScores .tag{display:none}
-.host-game.final #hScores{max-height:max(200px,calc(100vh - 470px))}
+.host-game.final #hScores{max-height:max(180px,calc(100vh - 530px))}
 
 /* Player screen: make the opponent's name stand out */
 .opp-col .opp-side{min-width:180px;gap:8px}

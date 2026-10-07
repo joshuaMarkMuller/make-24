@@ -46,19 +46,19 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Energy** | **≈ 10.7 kWh** | 4.4–20.7 kWh | about 107 boils of a full electric kettle (44–207 boils) |
-| **Water** | **≈ 44 litres** | 4–85 litres | about one short shower |
-| **Cost** | **≈ A$3.18** | A$1.26–6.18 | energy ≈ A$3.01 plus water ≈ A$0.17, at Victorian household prices |
+| **Energy** | **≈ 10.9 kWh** | 4.5–21.1 kWh | about 109 boils of a full electric kettle (45–211 boils) |
+| **Water** | **≈ 45 litres** | 4–86 litres | about one short shower |
+| **Cost** | **≈ A$3.24** | A$1.28–6.28 | energy ≈ A$3.06 plus water ≈ A$0.17, at Victorian household prices |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
 | Activity | Share | Energy |
 |---|---|---|
-| Reading and writing project files | 33% | ≈ 3.5 kWh |
-| Running code and tests | 25% | ≈ 2.7 kWh |
-| Claude's built-in instructions (re-read every step) | 22% | ≈ 2.3 kWh |
+| Reading and writing project files | 33% | ≈ 3.6 kWh |
+| Running code and tests | 26% | ≈ 2.8 kWh |
+| Claude's built-in instructions (re-read every step) | 22% | ≈ 2.4 kWh |
 | Conversation and replies | 12% | ≈ 1.3 kWh |
-| Syncing files to the computer | 7% | ≈ 0.7 kWh |
+| Syncing files to the computer | 7% | ≈ 0.8 kWh |
 
 **How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
 
@@ -68,6 +68,7 @@ Where the energy went (approximate share of the estimate; water follows the same
 - **Split between activities:** weighted by cost, so re-reading earlier conversation counts for less than new reading or writing.
 
 ## Change log
+- **2026-10-07** Host final results: the Change Settings and New Match buttons now sit in a row at the bottom of the scoreboard, so they no longer cover any scores or the podium.
 - **2026-10-07** The lobby now closes when the match starts, so a code shared with another class won't work. Players who drop out (for example, their phone locks) can rejoin by typing the same code and name, and keep their score. The lobby opens again when the host returns to the waiting room.
 - **2026-10-07** Removed the explanatory notes under each criterion on the roadmap.
 - **2026-10-07** Load test: three lobbies of 24 players each played 10-round matches at the same time on one server (run by Claude on a copy of the server, not on Render). No problems found: no cross-lobby mix-ups, correct groups and scores, the 3-second auto-start worked in every lobby, and the server used about 83 MB of memory and under 5% of one CPU core.

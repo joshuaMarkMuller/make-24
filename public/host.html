@@ -92,11 +92,13 @@
         <fieldset class="host-panel scoreboard">
           <legend>Scoreboard</legend>
           <div id="hScores"></div>
+          <!-- At the end of a match the host buttons move here, under the scoreboard -->
+          <div class="sb-actions" id="hFinalSlot"></div>
         </fieldset>
       </div>
       <!-- Final results: top three on a podium -->
       <div class="podium" id="hPodium" hidden aria-label="Top three players"></div>
-      <div class="actions host-actions">
+      <div class="actions host-actions" id="hActions">
         <button class="xp-btn" id="hEnd" hidden>End Game</button>
         <button class="xp-btn" id="hLobby" hidden>Change Settings</button>
         <button class="xp-btn default" id="hNext" hidden>Next Round</button>
