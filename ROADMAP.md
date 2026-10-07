@@ -6,8 +6,9 @@
 | 2 | Head-to-head over Wi-Fi | Complete |
 | 3 | 10-round match | Complete |
 | 4 | Whole class (up to 24) | Complete |
-| 5 | Online with lobby codes | In progress |
-| 6 | Real-world testing | Not started |
+| 5 | Sound effects | Not started |
+| 6 | Online with lobby codes | In progress |
+| 7 | Real-world testing | Not started |
 
 ## Stage 1: Projector game
 - [x] HTML application that works in my browser
@@ -30,13 +31,18 @@
 - [x] All Stage 3 functionality still works with 24 players
 - [x] The host doesn't play: the host screen displays the scores and moderates the game
 
-## Stage 5: Online with lobby codes
+## Stage 5: Sound effects
+- [ ] A sound plays when a player selects a card
+- [ ] A sound plays during the card cascade
+- [ ] A sound plays when time runs out
+
+## Stage 6: Online with lobby codes
 - [x] The game is hosted online through a paid hosting service
 - [x] Others join through a lobby code
 - [ ] I have tested whether multiple games can be hosted at the same time, and whether any issues arise from that
 - [ ] I have tested whether the game is blocked on my school's Wi-Fi
 
-## Stage 6: Real-world testing
+## Stage 7: Real-world testing
 - [ ] I have tested the game with friends or colleagues
 - [ ] I have tested the game with a full class
 
@@ -46,16 +52,16 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Energy** | **≈ 10.9 kWh** | 4.5–21.1 kWh | about 109 boils of a full electric kettle (45–211 boils) |
-| **Water** | **≈ 45 litres** | 4–86 litres | about one short shower |
-| **Cost** | **≈ A$3.24** | A$1.28–6.28 | energy ≈ A$3.06 plus water ≈ A$0.17, at Victorian household prices |
+| **Energy** | **≈ 11.0 kWh** | 4.5–21.3 kWh | about 110 boils of a full electric kettle (45–213 boils) |
+| **Water** | **≈ 45 litres** | 5–87 litres | about one short shower |
+| **Cost** | **≈ A$3.27** | A$1.29–6.34 | energy ≈ A$3.09 plus water ≈ A$0.18, at Victorian household prices |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
 | Activity | Share | Energy |
 |---|---|---|
 | Reading and writing project files | 33% | ≈ 3.6 kWh |
-| Running code and tests | 26% | ≈ 2.8 kWh |
+| Running code and tests | 26% | ≈ 2.9 kWh |
 | Claude's built-in instructions (re-read every step) | 22% | ≈ 2.4 kWh |
 | Conversation and replies | 12% | ≈ 1.3 kWh |
 | Syncing files to the computer | 7% | ≈ 0.8 kWh |
@@ -68,6 +74,7 @@ Where the energy went (approximate share of the estimate; water follows the same
 - **Split between activities:** weighted by cost, so re-reading earlier conversation counts for less than new reading or writing.
 
 ## Change log
+- **2026-10-07** Added Stage 5: sound effects (selecting a card, the card cascade, and time running out). Online with lobby codes is now Stage 6 and real-world testing is Stage 7; earlier change-log entries use the old numbers.
 - **2026-10-07** Host final results: the Change Settings and New Match buttons now sit in a row at the bottom of the scoreboard, so they no longer cover any scores or the podium.
 - **2026-10-07** The lobby now closes when the match starts, so a code shared with another class won't work. Players who drop out (for example, their phone locks) can rejoin by typing the same code and name, and keep their score. The lobby opens again when the host returns to the waiting room.
 - **2026-10-07** Removed the explanatory notes under each criterion on the roadmap.

@@ -2,7 +2,7 @@
 
 A classroom maths game. Students get four numbers from 1 to 9 and combine them with +, −, × and ÷ to make exactly 24.
 
-The project grows in stages, from a single game projected on the board (Stage 1) to an online race for a whole class, with lobby codes (Stage 5). See [docs/ROADMAP.md](docs/ROADMAP.md).
+The project grows in stages, from a single game projected on the board (Stage 1) to an online race for a whole class, with lobby codes (Stage 6). See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## How to play
 
@@ -17,7 +17,7 @@ Keyboard: `1`–`4` pick a card · `+ - * /` pick an operation · `Backspace` un
 
 Open `public/index.html` in any modern browser. It doesn't need a server or an internet connection. Extra keys: `N` or `F2` new puzzle · `S` reveal solution · `F1` help.
 
-## Class race (Stages 2–5)
+## Class race (Stages 2–4 and 6)
 
 The teacher opens the **host screen**, which creates a lobby with a five-character code (like `KQ7PX`) shown in large letters for the projector. Up to 24 players go to the game's website on their own devices, type the code and their name, and join that lobby. One server can run many lobbies at once, so several classes can play at the same time without seeing each other. The lobby closes as soon as the host presses **Start Match**, so a code passed to another class won't work. A player who drops out (for example, their phone locks) can rejoin by typing the same code and the same name, and gets their score back. The lobby opens again when the host returns to the waiting room.
 
@@ -37,7 +37,7 @@ When a match ends (after the last round or with End Game), the host screen switc
 
 **Scoring:** making 24 scores 1,000 points for an instant answer, dropping steadily to 500 at 30 seconds (about 17 points per second), plus a 100-point bonus for finishing first in your group. Players who don't make 24 in time, or give up, score nothing that round. Everyone's points go into one shared scoreboard of progress bars, shown after every round; the final one names the match winner. Players who join mid-round sit out until the next one.
 
-### Running it online (Stage 5)
+### Running it online (Stage 6)
 
 The game runs on [Render](https://render.com) as one small paid web service (the Starter instance). The repository includes a `render.yaml` blueprint with the settings.
 
