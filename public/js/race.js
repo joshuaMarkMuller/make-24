@@ -41,10 +41,18 @@ try{
   $('codeInput').value=cleanCode(new URLSearchParams(location.search).get('code')||sessionStorage.getItem('make24-code'));
   $('nameInput').value=sessionStorage.getItem('make24-name')||'';
 }catch{}
-// Emoji dropdown: remembers the last choice, otherwise starts on a random one
-$('emojiInput').innerHTML=EMOJIS.map(([e,n])=>`<option value="${e}">${e} ${n}</option>`).join('');
-try{$('emojiInput').value=sessionStorage.getItem('make24-emoji')||randomEmoji()}catch{$('emojiInput').value=randomEmoji()}
-if(!$('emojiInput').value)$('emojiInput').value=randomEmoji();
+// Emoji picker: a button showing the chosen emoji opens a grid of big emoji (remembers the last choice)
+function setEmoji(e){$('emojiInput').value=e;$('emojiBtn').textContent=e;$('emojiBtn').setAttribute('aria-label',`Your emoji: ${(EMOJIS.find(x=>x[0]===e)||[])[1]||''}. Change`);
+  $('emojiGrid').querySelectorAll('.emoji-opt').forEach(b=>b.setAttribute('aria-pressed',b.dataset.e===e))}
+$('emojiGrid').innerHTML=[...new Set(EMOJIS.map(x=>x[2]))].map(g=>`<div class="emoji-group">${g}</div>`+
+  EMOJIS.filter(x=>x[2]===g).map(([e,n])=>`<button type="button" class="emoji-opt" data-e="${e}" title="${n}" aria-label="${n}">${e}</button>`).join('')).join('');
+function openGrid(open){$('emojiGrid').hidden=!open;$('emojiBtn').setAttribute('aria-expanded',open);
+  if(open)($('emojiGrid').querySelector('[aria-pressed="true"]')||$('emojiGrid').querySelector('.emoji-opt')).focus()}
+$('emojiBtn').onclick=e=>{e.stopPropagation();openGrid($('emojiGrid').hidden)};
+$('emojiGrid').onclick=e=>{e.stopPropagation();const b=e.target.closest('.emoji-opt');if(!b)return;setEmoji(b.dataset.e);openGrid(false);$('nameInput').focus()};
+$('emojiGrid').onkeydown=e=>{e.stopPropagation();if(e.key==='Escape'){openGrid(false);$('emojiBtn').focus()}};
+document.addEventListener('click',()=>{if(!$('emojiGrid').hidden)openGrid(false)});
+{let saved=null;try{saved=sessionStorage.getItem('make24-emoji')}catch{}setEmoji(EMOJIS.some(x=>x[0]===saved)?saved:randomEmoji())}
 $('codeInput').oninput=()=>{const c=cleanCode($('codeInput').value);if($('codeInput').value!==c)$('codeInput').value=c};
 $('joinForm').onsubmit=e=>{
   e.preventDefault();
@@ -510,7 +518,7 @@ document.addEventListener('keydown',e=>{
   if(open){if(k==='Escape'&&(open.id==='helpDlg'||open.id==='aboutDlg'))hide(open.id);return}
   if(cascadeRAF){finishCascade();return}
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
-  if(/^[1-9]$/.test(k)){const i=+k-1;if(R.slots[i])clickCard(i)}
+  if(/^[1-9]$/.test(k)){const i=+k-1;if(R.slots&&R.slots[i])clickCard(i)}
   else if(k==='+')pickOp('+');else if(k==='-')pickOp('−');
   else if(k==='*'||k==='x'||k==='X')pickOp('×');else if(k==='/'){e.preventDefault();pickOp('÷')}
   else if(k==='Backspace'){e.preventDefault();undo()}else if(k==='r'||k==='R')reset();

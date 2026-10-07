@@ -51,7 +51,7 @@
             <label for="codeInput">Lobby code:</label>
             <div class="row"><input type="text" id="codeInput" class="code-input" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="KQ7PX"></div>
             <label for="nameInput">Your emoji and name:</label>
-            <div class="row"><select id="emojiInput" class="emoji-select" aria-label="Your emoji"></select><input type="text" id="nameInput" maxlength="16" autocomplete="off" placeholder="e.g. Josh">
+            <div class="row"><span class="emoji-pick"><button type="button" id="emojiBtn" class="emoji-btn" aria-haspopup="true" aria-expanded="false" aria-controls="emojiGrid" title="Choose your emoji"></button><input type="hidden" id="emojiInput"><div id="emojiGrid" class="emoji-grid" role="dialog" aria-label="Choose your emoji" hidden></div></span><input type="text" id="nameInput" maxlength="16" autocomplete="off" placeholder="e.g. Josh">
               <button class="xp-btn default" type="submit">Join</button></div>
             <p class="hint" id="joinMsg"></p>
           </div>

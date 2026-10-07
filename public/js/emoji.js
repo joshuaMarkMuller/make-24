@@ -1,11 +1,19 @@
 /* emoji.js — the emoji players can pick, and the win/lose animation helper.
  * Shared by the player screen, the host screen and the server (which only accepts emoji from this list). */
 const EMOJIS = [
-  ['🐶', 'Dog'], ['🐱', 'Cat'], ['🐼', 'Panda'], ['🦊', 'Fox'], ['🐸', 'Frog'], ['🐵', 'Monkey'],
-  ['🦁', 'Lion'], ['🐯', 'Tiger'], ['🐨', 'Koala'], ['🐰', 'Rabbit'], ['🐻', 'Bear'], ['🐧', 'Penguin'],
-  ['🦄', 'Unicorn'], ['🐙', 'Octopus'], ['🦖', 'Dinosaur'], ['🐢', 'Turtle'], ['🐝', 'Bee'], ['🦋', 'Butterfly'],
-  ['🐬', 'Dolphin'], ['🦉', 'Owl'], ['🦘', 'Kangaroo'], ['🍕', 'Pizza'], ['🌮', 'Taco'], ['🍩', 'Doughnut'],
-  ['🍉', 'Watermelon'], ['🚀', 'Rocket'], ['⚽', 'Football'], ['🎸', 'Guitar'], ['🌈', 'Rainbow'], ['⭐', 'Star'],
+  // Faces
+  ['😀', 'Grinning', 'Faces'], ['😂', 'Laughing', 'Faces'], ['😎', 'Cool', 'Faces'], ['🤓', 'Nerd', 'Faces'],
+  ['🥳', 'Party', 'Faces'], ['🤩', 'Star-struck', 'Faces'], ['😇', 'Angel', 'Faces'], ['🤔', 'Thinking', 'Faces'],
+  ['😜', 'Cheeky', 'Faces'], ['🤠', 'Cowboy', 'Faces'], ['🤯', 'Mind blown', 'Faces'], ['😴', 'Sleepy', 'Faces'],
+  ['😭', 'Crying', 'Faces'], ['😱', 'Scared', 'Faces'], ['🙄', 'Eye roll', 'Faces'], ['😤', 'Huffing', 'Faces'],
+  ['😠', 'Angry', 'Faces'], ['🤢', 'Sick', 'Faces'], ['🤮', 'Vomiting', 'Faces'],
+  // Animals
+  ['🐶', 'Dog', 'Animals'], ['🐱', 'Cat', 'Animals'], ['🐼', 'Panda', 'Animals'], ['🦊', 'Fox', 'Animals'],
+  ['🐸', 'Frog', 'Animals'], ['🐵', 'Monkey', 'Animals'], ['🦁', 'Lion', 'Animals'], ['🐯', 'Tiger', 'Animals'],
+  ['🐨', 'Koala', 'Animals'], ['🐰', 'Rabbit', 'Animals'], ['🐻', 'Bear', 'Animals'], ['🐧', 'Penguin', 'Animals'],
+  ['🦄', 'Unicorn', 'Animals'], ['🐙', 'Octopus', 'Animals'], ['🦖', 'Dinosaur', 'Animals'], ['🐢', 'Turtle', 'Animals'],
+  ['🐝', 'Bee', 'Animals'], ['🦋', 'Butterfly', 'Animals'], ['🐬', 'Dolphin', 'Animals'], ['🦉', 'Owl', 'Animals'],
+  ['🦘', 'Kangaroo', 'Animals'],
 ];
 const EMOJI_SET = new Set(EMOJIS.map(e => e[0]));
 const randomEmoji = () => EMOJIS[Math.floor(Math.random() * EMOJIS.length)][0];
