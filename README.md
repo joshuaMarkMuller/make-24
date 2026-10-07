@@ -19,7 +19,7 @@ Open `public/index.html` in any modern browser. It doesn't need a server or an i
 
 ## Class race (Stages 2–5)
 
-The teacher opens the **host screen**, which creates a lobby with a five-character code (like `KQ7PX`) shown in large letters for the projector. Up to 24 players go to the game's website on their own devices, type the code and their name, and join that lobby. One server can run many lobbies at once, so several classes can play at the same time without seeing each other.
+The teacher opens the **host screen**, which creates a lobby with a five-character code (like `KQ7PX`) shown in large letters for the projector. Up to 24 players go to the game's website on their own devices, type the code and their name, and join that lobby. One server can run many lobbies at once, so several classes can play at the same time without seeing each other. The lobby closes as soon as the host presses **Start Match**, so a code passed to another class won't work. A player who drops out (for example, their phone locks) can rejoin by typing the same code and the same name, and gets their score back. The lobby opens again when the host returns to the waiting room.
 
 Each round everyone is drawn into pairs, with one group of three when the number of players is odd (6 players → 3 pairs, 7 → 2 pairs and a three, 19 → 8 pairs and a three). Opponents change every round, avoiding repeat pairings where possible.
 

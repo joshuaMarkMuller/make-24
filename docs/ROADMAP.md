@@ -28,12 +28,13 @@
 ## Stage 4: Whole class
 - [x] Up to 24 people can join over the Wi-Fi network
 - [x] All Stage 3 functionality still works with 24 players
-- [x] The host doesn't play: the host screen displays the scores and moderates the game (match settings, renaming players, Bonk, End Game)
+- [x] The host doesn't play: the host screen displays the scores and moderates the game
 
 ## Stage 5: Online with lobby codes
 - [x] The game is hosted online through a paid hosting service
 - [x] Others join through a lobby code
 - [ ] I have tested whether multiple games can be hosted at the same time, and whether any issues arise from that
+- [ ] I have tested whether the game is blocked on my school's Wi-Fi
 
 ## Stage 6: Real-world testing
 - [ ] I have tested the game with friends or colleagues
@@ -45,19 +46,19 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Energy** | **≈ 10.1 kWh** | 4.1–19.5 kWh | about 101 boils of a full electric kettle (41–195 boils) |
-| **Water** | **≈ 41 litres** | 4–80 litres | about one short shower |
-| **Cost** | **≈ A$3.00** | A$1.19–5.82 | energy ≈ A$2.84 plus water ≈ A$0.16, at Victorian household prices |
+| **Energy** | **≈ 10.7 kWh** | 4.4–20.7 kWh | about 107 boils of a full electric kettle (44–207 boils) |
+| **Water** | **≈ 44 litres** | 4–85 litres | about one short shower |
+| **Cost** | **≈ A$3.18** | A$1.26–6.18 | energy ≈ A$3.01 plus water ≈ A$0.17, at Victorian household prices |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
 | Activity | Share | Energy |
 |---|---|---|
-| Reading and writing project files | 34% | ≈ 3.4 kWh |
-| Running code and tests | 24% | ≈ 2.4 kWh |
-| Claude's built-in instructions (re-read every step) | 22% | ≈ 2.2 kWh |
-| Conversation and replies | 12% | ≈ 1.2 kWh |
-| Syncing files to the computer | 8% | ≈ 0.8 kWh |
+| Reading and writing project files | 33% | ≈ 3.5 kWh |
+| Running code and tests | 25% | ≈ 2.7 kWh |
+| Claude's built-in instructions (re-read every step) | 22% | ≈ 2.3 kWh |
+| Conversation and replies | 12% | ≈ 1.3 kWh |
+| Syncing files to the computer | 7% | ≈ 0.7 kWh |
 
 **How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
 
@@ -67,6 +68,10 @@ Where the energy went (approximate share of the estimate; water follows the same
 - **Split between activities:** weighted by cost, so re-reading earlier conversation counts for less than new reading or writing.
 
 ## Change log
+- **2026-10-07** The lobby now closes when the match starts, so a code shared with another class won't work. Players who drop out (for example, their phone locks) can rejoin by typing the same code and name, and keep their score. The lobby opens again when the host returns to the waiting room.
+- **2026-10-07** Removed the explanatory notes under each criterion on the roadmap.
+- **2026-10-07** Load test: three lobbies of 24 players each played 10-round matches at the same time on one server (run by Claude on a copy of the server, not on Render). No problems found: no cross-lobby mix-ups, correct groups and scores, the 3-second auto-start worked in every lobby, and the server used about 83 MB of memory and under 5% of one CPU core.
+- **2026-10-07** Added a Stage 5 criterion: test whether the game is blocked on the school's Wi-Fi.
 - **2026-10-07** Added a Stage 5 criterion: test whether multiple games can be hosted at the same time, and whether any issues arise. Stage 5 is back in progress until this is tested.
 - **2026-10-07** Player screen: making 24 plays the card cascade with the scoreboard shown on top straight away (updating live while the others finish). The results window has no buttons: the next round, or the host starting a new match, clears it; returning to the waiting room closes it too.
 - **2026-10-07** Claude usage cost now uses Victorian prices: the Victorian Default Offer electricity rate (Powercor zone) and Greater Western Water's usage charge, both for Hoppers Crossing.

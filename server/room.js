@@ -90,6 +90,9 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     timers: [],
     result: null,
     lastActive: Date.now(),
+    // Players who dropped out after the match started (phone locked, page closed…), by lower-case
+    // name. The lobby is closed once a match starts, but these players may rejoin and keep their score.
+    departed: new Map(),
   };
   const emit = (event, data) => io.to(code).emit(event, data);
   const hostId = () => game.hostSocket;
@@ -113,6 +116,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       cardCount: game.cardCount,
       hostId: hostId(),
       hostConnected: !!game.hostSocket,
+      lobbyOpen: game.phase === 'lobby',   // joining closes when the match starts
       joinUrls,
       nums: game.phase === 'lobby' ? null : game.puzzle?.nums || null,
       maxPlayers: MAX_PLAYERS,
@@ -168,7 +172,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     game.pairCounts.clear();
     game.groups = [];
     game.result = null;
-    for (const p of game.players.values()) { p.points = 0; p.wins = 0; p.gained = 0; p.bonks = 0; p.group = null; p.gaveUp = false; p.solved = false; resetBoardShape(p); }
+    for (const p of [...game.players.values(), ...game.departed.values()]) { p.points = 0; p.wins = 0; p.gained = 0; p.bonks = 0; p.group = null; p.gaveUp = false; p.solved = false; resetBoardShape(p); }
   }
 
   function startRound() {
@@ -238,6 +242,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     clearTimers();
     game.phase = 'lobby';
     resetMatch();
+    game.departed.clear();          // the lobby is open again, so anyone can join
     if (message) emit('notice', message);
     broadcast();
   }
@@ -253,10 +258,21 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   }
   const hostIsConnected = () => !!game.hostSocket && io.sockets.sockets.has(game.hostSocket);
 
-  // A player joins. Anyone joining mid-round plays from the next round.
+  // A player joins. The lobby closes once the match starts (so the code can't be passed to
+  // another class): after that, only players who dropped out can rejoin, by typing the same
+  // name, and they get their score back. Anyone rejoining mid-round plays from the next round.
   function addPlayer(socket, name) {
     if (game.players.size >= MAX_PLAYERS) return { ok: false, error: `This lobby is full (${MAX_PLAYERS} players).` };
-    const player = newPlayer(uniqueName(name));
+    let player;
+    if (game.phase !== 'lobby') {
+      const key = String(name || '').trim().replace(/\s+/g, ' ').slice(0, 16).toLowerCase();
+      player = game.departed.get(key);
+      if (!player) return { ok: false, error: 'This game has already started, so the lobby is closed. If you were already playing, type exactly the same name to rejoin.' };
+      game.departed.delete(key);
+      player.name = uniqueName(player.name);
+      player.group = null; player.gaveUp = false; player.solved = false; player.gained = 0; resetBoardShape(player);
+      emit('notice', `${player.name} rejoined the game.`);
+    } else player = newPlayer(uniqueName(name));
     game.players.set(socket.id, player);
     socket.join(code);
     attach(socket);
@@ -393,6 +409,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       const p = game.players.get(socket.id);
       if (!p) return;
       game.players.delete(socket.id);
+      if (game.phase !== 'lobby') game.departed.set(p.name.toLowerCase(), p);   // may rejoin with the same name
       emit('notice', `${p.name} left the game.`);
       if (game.phase !== 'lobby' && game.players.size < 2) return backToLobby('Not enough players left, so the match has ended.');
       if (p.group !== null && game.groups[p.group]) groupFinishedCheck(game.groups[p.group]);

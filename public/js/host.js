@@ -63,7 +63,7 @@ function showView(id){for(const v of ['hostError','hostLobby','hostGame'])$(v).h
 /* ---------- Drawing ---------- */
 function render(){
   const s=H.state;if(!s||s.hostId!==socket.id)return;
-  $('hPlayersPanel').textContent=`Lobby ${s.code} · Players: ${s.players.length} of ${s.maxPlayers}`;
+  $('hPlayersPanel').textContent=`Lobby ${s.code}${s.lobbyOpen?'':' (closed)'} · Players: ${s.players.length} of ${s.maxPlayers}`;
   if(s.phase==='lobby'){renderLobby(s);return}
   renderGame(s);
 }
