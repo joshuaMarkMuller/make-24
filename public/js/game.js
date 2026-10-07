@@ -195,6 +195,7 @@ document.querySelectorAll('.menu-title').forEach(t=>{
   t.onmouseenter=()=>{if(document.querySelector('.menu.open')&&!t.parentElement.classList.contains('open')){closeMenus();t.parentElement.classList.add('open')}};
 });
 document.addEventListener('click',closeMenus);
+document.querySelectorAll('[data-about]').forEach(b=>b.onclick=e=>{e.stopPropagation();closeMenus();show('aboutDlg')});
 const ACTIONS={
   next,undo,reset,reveal,
   options:()=>{show('optionsDlg');$('customMsg').textContent=''},

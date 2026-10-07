@@ -60,19 +60,18 @@ $('joinForm').onsubmit=e=>{
 };
 
 // The host screen (host.html) starts rounds; players just close the results to look at the felt
-$('againBtn').onclick=()=>{stopCascade();hide('resultDlg')};
 
 /* ---------- Server updates ---------- */
 socket.on('connect',()=>{$('status').textContent='Connected'});
 socket.on('disconnect',()=>{$('status').textContent='Connection lost. Refresh the page to rejoin.';R.me=null;stopTimer()});
 socket.on('notice',t=>{R.notice=t;R.noticeAt=Date.now();render()});
-socket.on('state',s=>{R.state=s;render()});
+socket.on('state',s=>{R.state=s;R.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;render()});
 // The host changed my name in the waiting room
 socket.on('renamed',name=>{R.me=name;$('youPanel').textContent='You: '+name;R.notice=`The host changed your name to ${name}.`;R.noticeAt=Date.now();render()});
 socket.on('round',r=>{
   // Every group gets the same cards; suits are just for looks
   R.nums=r.nums;R.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
-  resetBoard();R.locked=true;hide('resultDlg');stopCascade();clearOpps();
+  resetBoard();R.locked=true;hide('resultDlg');stopCascade();clearOpps();clearInterval(R.nextTick);
   R.deadline=performance.now()+r.countdownMs+r.limitMs;
   if(!R.me)return;
   showScreen('countdown');
@@ -117,7 +116,7 @@ function render(){
 
   const sittingOut=(s.phase==='countdown'||s.phase==='playing')&&me.group===null;
   if(s.phase==='lobby'||sittingOut){
-    stopTimer();showScreen('lobbyPanel');
+    stopTimer();showScreen('lobbyPanel');if(!sittingOut){hide('resultDlg');stopCascade()}
     const list=$('playerList');
     list.innerHTML=s.players.map(p=>`<li><span>${esc(p.name)}${p.id===R.myId?'<span class="you">(you)</span>':''}</span>`+
       `</li>`).join('')||'<li class="empty">Nobody has joined yet.</li>';
@@ -145,6 +144,12 @@ function render(){
     const first=myGroup&&myGroup.winnerId===R.myId;
     setMsg(`You made 24! +${me.gained} points${first?` (including +${s.firstBonus} for finishing first)`:''}. Waiting for the others…`,'good');
     R.celebratedRound=s.round;runCascade(null);
+    showSolved(s,me,first);
+  }
+  // While I wait for the others, keep the scoreboard on top of the cascade up to date
+  else if(s.phase==='playing'&&me.solved&&R.liveRound===s.round){
+    const sig=s.players.map(p=>p.id+':'+p.points+':'+p.bonks).join();
+    if(sig!==R.liveSig){R.liveSig=sig;renderScoreRows(s,false)}
   }
   // An opponent beat me to it, but I can still score
   if(s.phase==='playing'&&!me.solved&&!me.gaveUp&&myGroup&&myGroup.winnerId&&myGroup.winnerId!==R.myId&&R.beatenRound!==s.round){
@@ -155,6 +160,18 @@ function render(){
   if(s.phase==='playing'&&me.gaveUp)setMsg('You gave up. Waiting for the others…','bad');
 
   if((s.phase==='result'||s.phase==='final')&&s.result&&R.shownResultRound!==s.round){R.shownResultRound=s.round;showResult(s.result,s)}
+}
+
+// I made 24 while others are still racing: the cascade plays and the scoreboard shows on top
+function showSolved(s,me,first){
+  const last=R.slots.find(Boolean);
+  $('resIcon').textContent=first?'★':'✓';$('resIcon').classList.remove('warn');
+  $('resTitle').textContent=first?'You won your race!':'You made 24!';
+  $('resExpr').textContent=last?`${last.e} = 24`:'';
+  $('resSub').textContent=`+${me.gained} points${first?` (including +${s.firstBonus} for finishing first)`:''}.`;
+  clearInterval(R.nextTick);$('againNote').textContent='Waiting for the others to finish…';
+  R.liveRound=s.round;R.liveSig=s.players.map(p=>p.id+':'+p.points+':'+p.bonks).join();
+  renderScoreRows(s,true);show('resultDlg');growScores();
 }
 
 function showResult(res,s){
@@ -198,23 +215,30 @@ function showResult(res,s){
   $('resIcon').textContent=icon;$('resIcon').classList.toggle('warn',icon==='!');
   $('resTitle').textContent=title;$('resExpr').textContent=expr;$('resSub').textContent=sub;
 
-  renderScoreRows(s,true);
+  // If the scoreboard is already up (I made 24 earlier), update it in place instead of regrowing the bars
+  const already=R.liveRound===s.round;R.liveRound=null;
+  renderScoreRows(s,!already);
 
   const left=s.matchRounds-s.matchRound;
-  $('againBtn').textContent='OK';$('againBtn').disabled=false;$('againBtn').hidden=false;$('lobbyBtn').hidden=true;
-  $('againNote').textContent=final
-    ?'Match over. Waiting for the host…'
-    :`${left} round${left>1?'s':''} to go. Waiting for the host to start the next one…`;
+  clearInterval(R.nextTick);
+  if(final)$('againNote').textContent='Match over. Waiting for the host…';
+  else{
+    // The next round starts by itself after a 3-second countdown
+    const f=()=>{const n=R.nextAt?Math.max(1,Math.min(3,Math.ceil((R.nextAt-performance.now())/1000))):3;
+      $('againNote').textContent=`${left} round${left>1?'s':''} to go. Next round in ${n}…`};
+    f();R.nextTick=setInterval(f,200);
+  }
   renderCards();
 
-  const open=()=>{show('resultDlg');growScores()};
+  const open=()=>{show('resultDlg');if(!already)growScores()};
   // If I just ran out of time, let the grey-out animation play before the results appear
   const waitFor=R.timedOutRound===s.round?Math.max(0,OUT_OF_TIME_MS-(performance.now()-R.timedOutAt)):0;
   if(waitFor>0){setTimeout(open,waitFor);return}
   const celebrate=final?(!tie&&top.id===R.myId):(!!solve&&R.celebratedRound!==s.round);
-  if(cascadeRAF)cascadeDone=open;            // still bouncing from this round's win
-  else if(celebrate){R.celebratedRound=s.round;runCascade(open)}
-  else open();
+  // The scoreboard opens straight away, on top of the win cascade (no buttons to press:
+  // the next round, or the host's next match, closes it)
+  if(celebrate&&!cascadeRAF){R.celebratedRound=s.round;runCascade(null)}
+  open();
 }
 
 // Scoreboard: one progress bar per player. The top score fills the bar; the others are
@@ -251,6 +275,7 @@ socket.on('bonked',b=>{
   // Refresh the results scoreboard if it's open, or about to open after the win animation
   const st=R.state;
   if(st&&(st.phase==='result'||st.phase==='final')&&R.shownResultRound===st.round)renderScoreRows(st,false,b.id,b.taken);
+  else if(st&&st.phase==='playing'&&R.liveRound===st.round){R.liveSig=st.players.map(p=>p.id+':'+p.points+':'+p.bonks).join();renderScoreRows(st,false,b.id,b.taken)}
   render();
 });
 
@@ -465,6 +490,7 @@ document.querySelectorAll('.menu-title').forEach(t=>{
   t.onmouseenter=()=>{if(document.querySelector('.menu.open')&&!t.parentElement.classList.contains('open')){closeMenus();t.parentElement.classList.add('open')}};
 });
 document.addEventListener('click',closeMenus);
+document.querySelectorAll('[data-about]').forEach(b=>b.onclick=e=>{e.stopPropagation();closeMenus();show('aboutDlg')});
 const ACTIONS={undo,reset,giveUp,howto:()=>show('helpDlg'),
   fullscreen:()=>{(document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()).catch(()=>{})}};
 document.querySelectorAll('.menu-list button').forEach(b=>b.onclick=()=>{closeMenus();ACTIONS[b.dataset.act]()});
@@ -476,7 +502,7 @@ document.addEventListener('keydown',e=>{
   const k=e.key;
   if(k==='F1'){e.preventDefault();show('helpDlg');return}
   const open=document.querySelector('.modal.show');
-  if(open){if(k==='Escape'&&open.id==='helpDlg')hide('helpDlg');if(k==='Enter'&&open.id==='resultDlg')$('againBtn').click();return}
+  if(open){if(k==='Escape'&&(open.id==='helpDlg'||open.id==='aboutDlg'))hide(open.id);return}
   if(cascadeRAF){finishCascade();return}
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
   if(/^[1-9]$/.test(k)){const i=+k-1;if(R.slots[i])clickCard(i)}

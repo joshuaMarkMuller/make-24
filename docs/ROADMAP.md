@@ -7,6 +7,7 @@
 | 3 | 10-round match | Complete |
 | 4 | Whole class (up to 24) | Complete |
 | 5 | Online with lobby codes | In progress |
+| 6 | Real-world testing | Not started |
 
 ## Stage 1: Projector game
 - [x] HTML application that works in my browser
@@ -30,8 +31,13 @@
 - [x] The host doesn't play: the host screen displays the scores and moderates the game (match settings, renaming players, Bonk, End Game)
 
 ## Stage 5: Online with lobby codes
-- [ ] The game is hosted online through a paid hosting service
-- [ ] Others join through a lobby code
+- [x] The game is hosted online through a paid hosting service
+- [x] Others join through a lobby code
+- [ ] I have tested whether multiple games can be hosted at the same time, and whether any issues arise from that
+
+## Stage 6: Real-world testing
+- [ ] I have tested the game with friends or colleagues
+- [ ] I have tested the game with a full class
 
 ## Claude usage (energy and water)
 
@@ -39,26 +45,38 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Energy** | **≈ 9.0 kWh** | 3.7–17.5 kWh | about 90 boils of a full electric kettle |
-| **Water** | **≈ 37 litres** | 4–72 litres | about one short shower |
+| **Energy** | **≈ 10.1 kWh** | 4.1–19.5 kWh | about 101 boils of a full electric kettle (41–195 boils) |
+| **Water** | **≈ 41 litres** | 4–80 litres | about one short shower |
+| **Cost** | **≈ A$3.00** | A$1.19–5.82 | energy ≈ A$2.84 plus water ≈ A$0.16, at Victorian household prices |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
 | Activity | Share | Energy |
 |---|---|---|
-| Reading and writing project files | 37% | ≈ 3.3 kWh |
-| Running code and tests | 23% | ≈ 2.1 kWh |
-| Claude's built-in instructions (re-read every step) | 19% | ≈ 1.7 kWh |
-| Conversation and replies | 13% | ≈ 1.2 kWh |
-| Syncing files to the computer | 8% | ≈ 0.7 kWh |
+| Reading and writing project files | 34% | ≈ 3.4 kWh |
+| Running code and tests | 24% | ≈ 2.4 kWh |
+| Claude's built-in instructions (re-read every step) | 22% | ≈ 2.2 kWh |
+| Conversation and replies | 12% | ≈ 1.2 kWh |
+| Syncing files to the computer | 8% | ≈ 0.8 kWh |
 
 **How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
 
 - **Energy:** the tokens Claude processed are counted from the session record and converted using climate scientist Zeke Hausfather's estimate for Claude Code (about 170 kWh, range 70–330 kWh, for 3.2 billion tokens).
 - **Water:** energy is converted using UC Riverside's research (Li, Yang, Islam and Ren), about 4.1 litres per kWh in total: water evaporated cooling the data centre plus water used by power stations generating the electricity (US average). The range runs from the low energy estimate with cooling water only to the high energy estimate with both.
+- **Cost:** energy and water priced at Victorian household rates for 2026–27 in Hoppers Crossing's area: 28.22c per kWh for electricity (Victorian Default Offer, Powercor zone, Essential Services Commission) and $3.8954 per kilolitre for water (Greater Western Water, first-step usage charge). This is what the same electricity and water would cost a Victorian household, not what Anthropic pays.
 - **Split between activities:** weighted by cost, so re-reading earlier conversation counts for less than new reading or writing.
 
 ## Change log
+- **2026-10-07** Added a Stage 5 criterion: test whether multiple games can be hosted at the same time, and whether any issues arise. Stage 5 is back in progress until this is tested.
+- **2026-10-07** Player screen: making 24 plays the card cascade with the scoreboard shown on top straight away (updating live while the others finish). The results window has no buttons: the next round, or the host starting a new match, clears it; returning to the waiting room closes it too.
+- **2026-10-07** Claude usage cost now uses Victorian prices: the Victorian Default Offer electricity rate (Powercor zone) and Greater Western Water's usage charge, both for Hoppers Crossing.
+- **2026-10-07** Claude usage now includes an estimated cost in Australian dollars for the energy and water, at average Australian household prices.
+- **2026-10-07** About window now shows only the credit line: “Created and hosted by JML (2026) for use at Hoppers Crossing Secondary College.” The duplicate About item under the projector game's Help menu was removed.
+- **2026-10-07** Claude usage: kettle boils now shown with a plausible range, like energy and water.
+- **2026-10-07** Added an About tab to the top bar of every screen (projector game, host and player): “Created and hosted by JML (2026) for use at Hoppers Crossing Secondary College.”
+- **2026-10-07** Added Stage 6: real-world testing, first with friends or colleagues, then with a full class.
+- **2026-10-07** Stage 5 tested online and working. Stage 5 complete.
+- **2026-10-07** The host no longer presses Next Round: after each round's results, a 3-second countdown runs on every screen and the next round starts by itself (after the “Out of time!” screen when time ran out). End Game during the countdown still ends the match.
 - **2026-10-07** Stage 5 built: lobby codes. The host screen creates a lobby with a 5-character code shown large for the projector; players go to the site's home page, type the code and their name, and join. One server runs many lobbies at once, kept completely separate, and a refreshed host screen takes back its own lobby. Inside a lobby the game plays exactly as in Stage 4. Added Render hosting settings (`render.yaml`) and instructions. Tested here with two lobbies playing at the same time. Waiting on the paid hosting set-up and a real test.
 - **2026-10-07** Water now shown as a single total.
 - **2026-10-07** Claude usage section now includes estimated water use (data-centre cooling and power generation) alongside energy.

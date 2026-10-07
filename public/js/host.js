@@ -50,9 +50,13 @@ socket.on('bonked',b=>{
 socket.on('state',s=>{
   H.state=s;
   if(s.timeLeftMs!=null)H.deadline=performance.now()+s.timeLeftMs;
+  H.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;
   render();
 });
 socket.on('round',r=>{H.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);H.deadline=performance.now()+r.countdownMs+r.limitMs});
+
+// Seconds left on the between-rounds countdown (never shows more than 3)
+const nextCount=at=>Math.max(1,Math.min(3,Math.ceil((at-performance.now())/1000)));
 
 function showView(id){for(const v of ['hostError','hostLobby','hostGame'])$(v).hidden=(v!==id)}
 
@@ -166,9 +170,17 @@ function renderGame(s){
   renderPodium(s,rows);
 
   // Buttons
+  // Between rounds the next round starts by itself after a 3-second countdown (shown on the button)
   $('hNext').hidden=!(s.phase==='result'||s.phase==='final');
-  $('hNext').textContent=s.phase==='final'?'New Match':'Next Round';
-  $('hNext').disabled=s.players.length<2;
+  clearInterval(H.nextTick);
+  if(s.phase==='result'&&H.nextAt){
+    $('hNext').disabled=true;
+    const f=()=>{$('hNext').textContent=`Next round in ${nextCount(H.nextAt)}…`};
+    f();H.nextTick=setInterval(f,200);
+  }else{
+    $('hNext').textContent=s.phase==='final'?'New Match':'Next Round';
+    $('hNext').disabled=s.players.length<2;
+  }
   $('hLobby').hidden=s.phase!=='final';
   $('hEnd').hidden=s.phase==='final';
   if(s.phase==='final')hide('endDlg');
@@ -287,11 +299,12 @@ document.querySelectorAll('.menu-title').forEach(t=>{
   t.onclick=e=>{e.stopPropagation();const m=t.parentElement,was=m.classList.contains('open');closeMenus();if(!was)m.classList.add('open')};
 });
 document.addEventListener('click',closeMenus);
+document.querySelectorAll('[data-about]').forEach(b=>b.onclick=e=>{e.stopPropagation();closeMenus();show('aboutDlg')});
 const ACTIONS={howto:()=>show('helpDlg'),
   fullscreen:()=>{(document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()).catch(()=>{})}};
 document.querySelectorAll('.menu-list button').forEach(b=>b.onclick=()=>{closeMenus();ACTIONS[b.dataset.act]()});
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>hide(b.dataset.close));
 document.addEventListener('keydown',e=>{
   if(e.key==='F1'){e.preventDefault();show('helpDlg')}
-  if(e.key==='Escape'){hide('helpDlg');hide('endDlg')}
+  if(e.key==='Escape'){hide('helpDlg');hide('endDlg');hide('aboutDlg')}
 });

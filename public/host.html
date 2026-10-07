@@ -29,6 +29,9 @@
         <button data-act="howto"><span>How Hosting Works</span><kbd>F1</kbd></button>
       </div>
     </div>
+    <div class="menu">
+      <button class="menu-title" data-about><u>A</u>bout</button>
+    </div>
   </nav>
 
   <main class="felt host-felt" id="felt">
@@ -121,6 +124,18 @@
   </div>
 </div>
 
+<!-- About dialog -->
+<div class="modal" id="aboutDlg">
+  <div class="dialog" role="dialog" aria-labelledby="aboutTitle">
+    <div class="titlebar small"><span class="title" id="aboutTitle">About</span>
+      <span class="caption-btns"><button class="cap close" data-close="aboutDlg" aria-label="Close">×</button></span></div>
+    <div class="dialog-body">
+      <p class="credit">Created and hosted by JML (2026) for use at Hoppers Crossing Secondary College.</p>
+      <div class="dialog-btns"><button class="xp-btn default" data-close="aboutDlg">OK</button></div>
+    </div>
+  </div>
+</div>
+
 <!-- Help -->
 <div class="modal" id="helpDlg">
   <div class="dialog" role="dialog" aria-labelledby="helpTitle">
@@ -132,7 +147,7 @@
         <li>Choose the match length and press <b>Start Match</b>.</li>
         <li>Each round, players are drawn into pairs (one group of three when there's an odd number) and race the same cards (4 or 5, your choice). A round lasts at most 30 seconds.</li>
         <li>Everyone who makes 24 scores 1,000 points for an instant answer, dropping to 500 at 30 seconds. The first in each group gets 100 bonus points.</li>
-        <li>Watch each race and the live scoreboard here, then press <b>Next Round</b>.</li>
+        <li>Watch each race and the live scoreboard here. After each round's results, the next round starts by itself after a 3-second countdown.</li>
       </ol>
       <p><b>Names:</b> in the waiting room, click ✎ next to a player's name to change it.</p>
       <p><b>Bonk:</b> if you suspect someone is cheating, press <b>Bonk</b> next to their name on the scoreboard to take 500 points from them (never below 0). Everyone sees their row shake with a big “BONK!”.</p>

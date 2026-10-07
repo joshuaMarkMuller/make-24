@@ -18,6 +18,8 @@ const MAX_ROUNDS = 10;
 const COUNTDOWN_MS = 3000;
 const ROUND_MS = 30000;            // time limit for each round
 const FIRST_BONUS = 100;           // extra points for being first in your group
+const NEXT_MS = 3000;              // countdown on the results before the next round starts by itself
+const OUT_OF_TIME_MS = 1900;       // players' screens show “Out of time!” this long before the results
 const BONK = 500;                  // points the host can take away from a suspected cheat
 const PREC = { '+': 1, '−': 1, '×': 2, '÷': 2 };
 
@@ -117,6 +119,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       limitMs: ROUND_MS,
       firstBonus: FIRST_BONUS,
       timeLeftMs: game.phase === 'playing' ? Math.max(0, game.endsAt - Date.now()) : null,
+      nextInMs: game.phase === 'result' && game.nextAt ? Math.max(0, game.nextAt - Date.now()) : null,   // auto-start of the next round
       players: [...game.players.entries()].map(([id, p]) => ({
         id, name: p.name, points: p.points, wins: p.wins, gained: p.gained, bonks: p.bonks,
         group: p.group, gaveUp: p.gaveUp, solved: p.solved,
@@ -221,6 +224,13 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     game.result.reason = endMatch ? 'host' : reason;
     game.result.endedEarly = endMatch && game.matchRound < game.matchRounds;
     game.phase = endMatch || game.matchRound >= game.matchRounds ? 'final' : 'result';
+    // Between rounds: once the results are on screen, count down 3 seconds and start the next round
+    game.nextAt = 0;
+    if (game.phase === 'result') {
+      const wait = (reason === 'time' ? OUT_OF_TIME_MS : 0) + NEXT_MS;
+      game.nextAt = Date.now() + wait;
+      game.timers.push(setTimeout(() => { if (game.phase === 'result' && game.players.size >= 2) startRound(); }, wait));
+    }
     broadcast();
   }
 
@@ -275,6 +285,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       if (!isHost()) return;
       if (game.phase === 'countdown' || game.phase === 'playing') endRound(true);
       else if (game.phase === 'result') {
+        clearTimers();
         game.result.endedEarly = game.matchRound < game.matchRounds;
         game.phase = 'final';
         broadcast();

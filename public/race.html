@@ -33,6 +33,9 @@
         <button data-act="howto"><span>How to Race</span><kbd>F1</kbd></button>
       </div>
     </div>
+    <div class="menu">
+      <button class="menu-title" data-about><u>A</u>bout</button>
+    </div>
   </nav>
 
   <main class="felt" id="felt">
@@ -130,7 +133,19 @@
         <legend>Scoreboard</legend>
         <div id="scoreRows"></div>
       </fieldset>
-      <div class="dialog-btns"><span class="hint-note" id="againNote"></span><button class="xp-btn" id="lobbyBtn" hidden>Change Settings</button><button class="xp-btn default" id="againBtn">Next Round</button></div>
+      <div class="dialog-btns"><span class="hint-note" id="againNote"></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- About dialog -->
+<div class="modal" id="aboutDlg">
+  <div class="dialog" role="dialog" aria-labelledby="aboutTitle">
+    <div class="titlebar small"><span class="title" id="aboutTitle">About</span>
+      <span class="caption-btns"><button class="cap close" data-close="aboutDlg" aria-label="Close">×</button></span></div>
+    <div class="dialog-body">
+      <p class="credit">Created and hosted by JML (2026) for use at Hoppers Crossing Secondary College.</p>
+      <div class="dialog-btns"><button class="xp-btn default" data-close="aboutDlg">OK</button></div>
     </div>
   </div>
 </div>
