@@ -16,16 +16,20 @@
  * and one phone-sized; the rest are simulated phones. While the matches play, it:
  *   - checks every round: groups, speed points, scores, nobody seeing another class's game
  *   - drops connections (one phone, five at once, ten at once), reloads a page mid-round,
- *     opens the game in a second tab, and has a phone leave and come back between rounds
+ *     tries to take a playing student's seat from another device, and has a phone leave and come back between rounds
  *   - tries to join mid-match with a new name and with someone else's name
  *   - pauses (mid-round and on the results), resumes, and starts the next round early
  *   - bonks with one press (should only arm), two presses, and lets an armed Bonk time out
- *   - checks the player help, the "Host a game" link, and that ranks are hidden while everyone is level
+ *   - checks the player help, the "Host a Game" button, and that ranks are hidden while everyone is level
  *   - floods card taps (only 10 a second get through, only to opponents and the host) and checks the
  *     scoreboard isn't redrawn when only the face-down cards change
  *   - times answers on the "device", including one that arrives late over a slow connection
- * Two small extra classes play alongside: 7 players (odd, so the group of three is checked to be shared
- * around) and an Elimination class where a knocked-out browser player keeps practising on the same cards.
+ *   - simulated phones that win three races in a row steal from someone (or let the steal run out),
+ *     and the scores are checked to allow for every steal
+ * Four small extra classes play alongside: C, 7 players (odd, so the group of three is checked to be
+ * shared around); D, Elimination, where a knocked-out browser player keeps practising on the same cards;
+ * E and F, three players each (Points and Elimination), where a browser player wins three races in a row,
+ * steals with the real buttons, and the terminal window shows "… beats … and …".
  *
  * Needs:  npm install   and, once,   npx playwright install chromium
  * (or set CHROME_PATH to a Chrome/Chromium to use instead)
@@ -110,7 +114,33 @@ async function startServer() {
     const me = { s, name, L, token, timers: [], joins: 0, codesSeen: new Set(), rejoinedCount: 0, progressIn: 0, statesIn: 0 };
     // A full game update where nothing changed except someone's face-down cards is wasted (change 13 stops these)
     const gist = st => JSON.stringify({ ...st, timeLeftMs: 0, nextInMs: 0, players: st.players.map(({ layout, sel, moveSeq, lastMove, ...rest }) => rest) });
+    // Three wins in a row: most phones steal from someone after a moment; some let the steal run out
+    s.on('state', st => {
+      const mine = st.players.find(p => p.id === me.id);
+      if (st.phase !== 'result' || !mine || !mine.canSteal || me.stealing || me.manual || me.onRound) return;
+      me.stealing = true;
+      if (Math.random() < 0.2) { L.stealsLapsed = (L.stealsLapsed || 0) + 1; return; }
+      setTimeout(() => {
+        const cur = me.state, elim = cur.mode === 'elim';
+        const targets = cur.players.filter(t => t.id !== me.id && (elim ? !t.out && t.lives >= 2 : t.points > 0));
+        const meNow = cur.players.find(p => p.id === me.id);
+        if (!targets.length || cur.phase !== 'result' || !meNow || !meNow.canSteal) return;   // the round moved on
+        const t = targets[Math.floor(Math.random() * targets.length)];
+        s.emit('steal', t.id, res => { if (!res.ok) fail(`${L.name}: ${name}'s steal refused: ${res.error}`); else L.steals = (L.steals || 0) + 1; });
+      }, rand(500, 4000));
+    });
     s.on('state', st => { const k = gist(st); if (k === me.lastGist) { me.cardOnlyStates = (me.cardOnlyStates || 0) + 1; } me.lastGist = k; me.state = st; me.statesIn++; me.codesSeen.add(st.code); if (me.observer) observe(L, st); });
+    // Steals change the scores, so the class's checker keeps track of them
+    s.on('stolen', d => {
+      if (!me.observer) return;
+      if (!d.life) {
+        if (!(d.amount >= 0 && d.amount <= 300)) fail(`${L.name}: a steal took ${d.amount} points`);
+        L.adj = L.adj || new Map();
+        L.adj.set(d.byName, (L.adj.get(d.byName) || 0) + d.amount); L.adj.set(d.fromName, (L.adj.get(d.fromName) || 0) - d.amount);
+      }
+      const victim = me.state && me.state.players.find(p => p.id === d.from);
+      if (victim && (victim.points < 0 || victim.lives < 1)) fail(`${L.name}: a steal left ${d.fromName} with ${victim.points} points / ${victim.lives} lives`);
+    });
     // Board updates should only come from my own opponents
     s.on('progress', d => {
       me.progressIn++; me.from = me.from || {}; me.from[d.id] = (me.from[d.id] || 0) + 1;
@@ -119,7 +149,8 @@ async function startServer() {
     });
     s.on('disconnect', () => { s.sendBuffer = []; });
     s.on('round', r => {
-      me.timers.forEach(clearTimeout); me.timers = []; me.moves = findMoves(r.nums); me.startAt = Date.now() + r.countdownMs;
+      me.timers.forEach(clearTimeout); me.timers = []; me.moves = findMoves(r.nums); me.startAt = Date.now() + r.countdownMs; me.stealing = false;
+      if (me.onRound) return me.onRound(r);
       if (me.manual) return;   // this phone is being driven by a check
       if (!me.moves) fail(`${L.name}: unsolvable puzzle ${r.nums}`);
       const at = (ms, f) => me.timers.push(setTimeout(f, r.countdownMs + ms));
@@ -168,7 +199,7 @@ async function startServer() {
       for (const g of st.groups) if (g.members.length === 3) for (const id of g.members) { const n = st.players.find(p => p.id === id)?.name; if (n) L.trios.set(n, (L.trios.get(n) || 0) + 1); }
       L.rounds.push({ round: st.matchRound, players: st.players.length, solved: st.result.solvedCount });
       for (const p of st.players) {
-        const exp = Math.max(0, (L.solverPts.get(p.name) || 0) - (L.bonkTaken.get(p.name) || 0));
+        const exp = (L.solverPts.get(p.name) || 0) + ((L.adj && L.adj.get(p.name)) || 0) - (L.bonkTaken.get(p.name) || 0);
         if (p.points !== exp) fail(`${L.name} round ${st.matchRound}: ${p.name} has ${p.points} points, expected ${exp}`);
       }
     }
@@ -188,10 +219,13 @@ async function startServer() {
     for (let i = 1; i <= PLAYERS - 2; i++) L.sims.push(await simPlayer(L, `${L.name}-Kid${String(i).padStart(2, '0')}`));
     L.sims[0].observer = true;
     L.bp = [];
-    for (const [k, vp] of [[1, [1000, 700]], [2, [390, 740]]]) {   // a laptop and a phone-sized screen
-      const p = await page(...vp); await p.goto(URL + '/');
+    for (const [k, vp] of [[1, [1000, 700]], [2, [390, 740]]]) {   // a laptop, then a second tab in the same browser (phone-sized)
+      let p;
+      if (k === 1) p = await page(...vp);
+      else { p = await L.bp[0].context().newPage(); await p.setViewportSize({ width: vp[0], height: vp[1] }); p.on('pageerror', e => pageErrs.push(e.message)); }
+      await p.goto(URL + '/');
       if (k === 1) {
-        ok(await p.getAttribute('.host-link a', 'href') === '/host.html', `${L.name}: "Host a game" link is on the join screen`);
+        ok(await p.getAttribute('#hostBtn', 'href') === '/host.html' && /Host a Game/.test(await p.textContent('#hostBtn')), `${L.name}: "Host a Game" button is on the join screen`);
         await p.keyboard.press('F1'); await sleep(150);
         const h = await p.evaluate(() => { const d = document.querySelector('#helpDlg .dialog').getBoundingClientRect(); return { shown: document.getElementById('helpDlg').classList.contains('show'), fits: d.top >= 0 && d.bottom <= innerHeight, text: document.querySelector('#helpDlg').innerText }; });
         ok(h.shown && h.fits && /lobby code/.test(h.text) && /emoji/.test(h.text) && /Elimination/.test(h.text) && /Give Up/.test(h.text), `${L.name}: player help opens, fits the screen, and covers the code, emoji, both modes and giving up`);
@@ -203,7 +237,7 @@ async function startServer() {
     }
     await shot(L.host, `${L.name}-host-waiting-room`);
   }
-  for (const L of LOBBIES) { const n = await L.host.evaluate(() => H.state.players.length); ok(n === PLAYERS, `${L.name}: all ${PLAYERS} players in the waiting room (${n})`); }
+  for (const L of LOBBIES) { const n = await L.host.evaluate(() => H.state.players.length); ok(n === PLAYERS, `${L.name}: all ${PLAYERS} players in the waiting room, including two tabs in the same browser (${n})`); }
   { const L = LOBBIES[0], sp = L.sims[3];
     sp.s.io.engine.close(); await sleep(2500);
     const names = await L.host.evaluate(() => H.state.players.map(p => p.name));
@@ -212,7 +246,8 @@ async function startServer() {
   /* ---------- Two small extra classes ----------
    * C: 7 players (odd), Points: the group of three should be shared around.
    * D: 10 players, Elimination with 3 lives: a browser player who's knocked out keeps practising. */
-  const EXTRAS = [{ name: 'C', cards: 4, mode: 'points', sims: 7 }, { name: 'D', cards: 4, mode: 'elim', sims: 9, browser: true }];
+  const EXTRAS = [{ name: 'C', cards: 4, mode: 'points', sims: 7 }, { name: 'D', cards: 4, mode: 'elim', sims: 9, browser: true },
+    { name: 'E', cards: 4, mode: 'points', sims: 2, browser: true, matchRounds: 4, streaker: true }, { name: 'F', cards: 4, mode: 'elim', sims: 2, browser: true, lives: 5, streaker: true }];
   for (const L of EXTRAS) {
     L.host = await page(1366, 768); await L.host.goto(URL + '/host.html');
     await L.host.waitForFunction(() => /^[A-Z0-9]{5}$/.test(document.getElementById('lobbyCode').textContent));
@@ -220,6 +255,11 @@ async function startServer() {
     L.timeline = []; L.seen = new Set(); L.solverPts = new Map(); L.bonkTaken = new Map(); L.rounds = [];
     L.simsList = [];
     for (let i = 1; i <= L.sims; i++) L.simsList.push(await simPlayer(L, `${L.name}-Kid${String(i).padStart(2, '0')}`));
+    if (L.streaker) {
+      // Kid01 never answers; Kid02 answers after 8 seconds (so it has points to steal); the browser answers first
+      L.simsList[0].onRound = () => {};
+      L.simsList[1].onRound = r => { L.simsList[1].timers.push(setTimeout(() => L.simsList[1].submit(), r.countdownMs + 8000)); };
+    }
     L.simsList[0].observer = true;
     if (L.browser) {
       L.bpx = await page(1000, 700); L.bpx.paused = true;   // never answers, so it gets knocked out
@@ -227,7 +267,8 @@ async function startServer() {
       await L.bpx.waitForFunction(() => R.myId);
     }
     await L.host.selectOption('#hMode', L.mode); await sleep(150);
-    if (L.mode === 'points') await L.host.selectOption('#hRounds', String(ROUNDS));
+    if (L.mode === 'points') await L.host.selectOption('#hRounds', String(L.matchRounds || ROUNDS));
+    if (L.lives) await L.host.selectOption('#hLives', String(L.lives));
     await L.host.selectOption('#hCardCount', String(L.cards));
     log(`extra class ${L.name}: lobby ${L.code}, ${L.sims + (L.browser ? 1 : 0)} players, ${L.mode === 'elim' ? 'Elimination' : 'Points'}`);
   }
@@ -338,7 +379,7 @@ async function startServer() {
       const gap = (Date.now() - resumedAt) / 1000;
       ok(gap > 2 && gap < 5, `${N} round 3→4: Resume restarts the 3-second countdown (${gap.toFixed(1)} s)`);
     }
-    if (upTo(5, 'a phone leaves and comes back between rounds')) {
+    if (upTo(6, 'a phone leaves and comes back between rounds')) {
       await waitRound(A, 5, 'playing'); await sleep(2000);
       const sp = A.sims[12], before = await playerOf(A, sp.name);
       sp.s.io.reconnection(false); sp.s.disconnect(); await sleep(1500);
@@ -406,26 +447,26 @@ async function startServer() {
       ok(banner && after && after.points === before.points && after.group === before.group, `${N} round 2: a laptop's connection drops: it shows "Reconnecting…", then rejoins its seat and race`);
       bp.paused = false;
     }
-    if (upTo(3, 'second tab takes over')) {
+    if (upTo(3, 'a second device using a playing name is refused')) {
       await waitRound(B, 3, 'playing'); await sleep(1000);
-      const old = B.bp[1]; old.paused = true;
-      const tab2 = await old.context().newPage(); tab2.on('pageerror', e => pageErrs.push(e.message));
-      await tab2.goto(URL + '/'); await tab2.fill('#codeInput', B.code); await tab2.fill('#nameInput', `${N}-Browser2`); await tab2.click('button[type=submit]');
-      await tab2.waitForFunction(() => R.myId, null, { timeout: 5000 }).catch(() => {});
-      await sleep(500);
-      const msg = await old.textContent('#joinMsg'), n = await B.host.evaluate(() => H.state.players.length);
-      ok(/another tab/.test(msg) && n === PLAYERS, `${N} round 3: opening the game in a second tab moves the player there; the old tab says so`);
-      old.done = true; B.bp[1] = tab2; browserLoop(B, tab2, 2);
+      const other = await page(1000, 700); await other.goto(URL + '/');
+      await other.fill('#codeInput', B.code); await other.fill('#nameInput', `${N}-Browser2`); await other.click('button[type=submit]');
+      await sleep(800);
+      const msg = await other.textContent('#joinMsg'), n = await B.host.evaluate(() => H.state.players.length);
+      const still = await B.bp[1].evaluate(() => !!R.me && !R.offline);
+      ok(/lobby is (closed|full)/.test(msg) && n === PLAYERS && still, `${N} round 3: another device can't take a playing student's seat by typing their name; the student keeps playing`);
+      await other.close();
     }
     if (upTo(4, 'ten phones drop at the end of a round')) {
       await waitRound(B, 4, 'playing');
       await B.host.waitForFunction(() => (H.state.phase === 'playing' && H.state.timeLeftMs < 3000) || H.state.phase === 'result', null, { timeout: 40000 }).catch(() => {});
       const ten = B.sims.slice(2, 12), pts = {};
-      for (const sp of ten) pts[sp.name] = (await playerOf(B, sp.name))?.points;
+      const net = n => -(((B.adj && B.adj.get(n)) || 0));   // undo any steals made meanwhile
+      for (const sp of ten) pts[sp.name] = (await playerOf(B, sp.name))?.points + net(sp.name);
       ten.forEach(sp => sp.s.io.engine.close());
       await sleep(4000);
       const back = await Promise.all(ten.map(sp => playerOf(B, sp.name)));
-      ok(back.every((p, i) => p && p.points >= pts[ten[i].name]), `${N} round 4: ten phones dropped together as the round ended; all came back with their points`);
+      ok(back.every((p, i) => p && p.points + net(ten[i].name) >= pts[ten[i].name]), `${N} round 4: ten phones dropped together as the round ended; all came back with their points`);
     }
     if (upTo(6, 'pause on the results, then Start Next Round')) {
       await waitRound(B, 5, 'result'); await B.host.click('#hPause'); await sleep(5000);
@@ -447,8 +488,8 @@ async function startServer() {
       const opps = B.sims.filter(x => g && g.members.includes(x.id) && x !== f);
       const before = opps.map(o => (o.from && o.from[f.id]) || 0), states0 = B.sims[0].cardOnlyStates || 0;
       const nums = st.nums.length;
-      for (let k = 0; k < 50; k++) { f.s.emit('progress', { layout: new Array(nums).fill(true), sel: k % nums }); await sleep(20); }
-      await sleep(150);
+      for (let k = 0; k < 50; k++) f.s.emit('progress', { layout: new Array(nums).fill(true), sel: k % nums });   // a burst of 50 at once
+      await sleep(300);
       const got = opps.map((o, i) => ((o.from && o.from[f.id]) || 0) - before[i]);
       const flood = await B.host.evaluate(() => ({ mut: window.__mut, races: window.__races }));
       // The flood only moved the selected card, which the host doesn't show. Now a real move (a card used up):
@@ -457,7 +498,7 @@ async function startServer() {
       await sleep(300);
       const h = await B.host.evaluate(() => { window.__mo.disconnect(); window.__mo2.disconnect(); return { mut: window.__mut, prog: window.__prog, races: window.__races }; });
       ok(flood.races === 0, `${N} round 7: taps that only change the selected card don't redraw the host's races (${flood.races} changes)`);
-      ok(opps.length && got.every(n => n >= 8 && n <= 25), `${N} round 7: 50 card taps in one second from one phone: its opponent got ${got.join(' and ')} (limit is 10 a second)`);
+      ok(opps.length && got.every(n => n >= 8 && n <= 14), `${N} round 7: a burst of 50 card taps from one phone: its opponent got ${got.join(' and ')} (the limit lets 10 through, then 10 a second)`);
       ok((B.sims[0].cardOnlyStates || 0) === states0, `${N} round 7: card taps don't send the whole game to the class (${(B.sims[0].cardOnlyStates || 0) - states0} full updates caused by the flood)`);
       ok(h.prog > 0 && h.races > flood.races && flood.mut === 0, `${N} round 7: a real move redraws the host's races, and the scoreboard is left alone (${flood.mut} scoreboard changes during the flood)`);
       const stray = [...LOBBIES.flatMap(L => L.sims)].reduce((n, x) => n + (x.strayProgress || 0), 0);
@@ -502,7 +543,48 @@ async function startServer() {
     } catch (e) { fail(`D: practice checks stopped: ${e.message.split('\n')[0]}`); }
   }
 
+  // A browser player wins three races in a row, then steals using the real buttons
+  async function streakClass(L) {
+    const bp = L.bpx, elim = L.mode === 'elim', N = `${L.name} (${elim ? 'Elimination' : 'Points'})`;
+    bp.paused = false;
+    try {
+      for (let round = 1; round <= 3; round++) {
+        await bp.waitForFunction(r => R.state && R.state.phase === 'playing' && R.state.matchRound === r && canPlay(), round, { timeout: 60000 });
+        await sleep(600);
+        const mv = findMoves(await bp.evaluate(() => R.nums)); let sel = null;
+        for (const m of mv) { if (sel !== m.a) await bp.keyboard.press(String(m.a + 1)); await bp.keyboard.press(opKey[m.op]); await bp.keyboard.press(String(m.b + 1)); sel = m.b; await sleep(60); }
+        if (round === 1) {
+          await sleep(400);
+          const line = await bp.evaluate(() => document.getElementById('termBody').innerText);
+          ok(/E-Browser beats E-Kid0\d and E-Kid0\d|F-Browser beats F-Kid0\d and F-Kid0\d/.test(line), `${N}: the terminal window shows "${line.split('\n').find(l => /beats/.test(l)) || line.trim()}"`);
+        }
+      }
+      await bp.waitForFunction(() => R.state.phase === 'result' && !document.getElementById('stealBox').hidden && document.getElementById('resultDlg').classList.contains('show'), null, { timeout: 40000 });
+      const box = await bp.evaluate(() => ({ text: document.getElementById('stealBox').innerText.replace(/\s+/g, ' '), n: document.querySelectorAll('#stealBox button').length }));
+      // Points: only Kid02 has points to steal. Elimination: both kids still have 2 lives.
+      ok(/3 wins in a row/.test(box.text) && box.n === (elim ? 2 : 1) && /Kid02/.test(box.text), `${N}: after three wins in a row the winner is offered a steal, listing only who can be stolen from ("${box.text.slice(0, 70)}…")`);
+      const banner = await L.host.textContent('#hBanner'), next = await L.host.textContent('#hNext');
+      ok(/choosing who to steal from/.test(banner) && /Waiting for a steal/.test(next), `${N}: the projector shows the winner is choosing, and the next round waits`);
+      await shot(bp, `${L.name}-steal-choice`);
+      const before = await L.host.evaluate(() => Object.fromEntries(H.state.players.map(p => [p.name, [p.points, p.lives]])));
+      const victim = L.simsList[1]; let got = null; victim.s.once('stolen', d => { got = d; });
+      const t0 = Date.now();
+      await bp.click('#stealBox button:has-text("Kid02")');
+      await sleep(600);
+      const after = await L.host.evaluate(() => Object.fromEntries(H.state.players.map(p => [p.name, [p.points, p.lives]])));
+      const me = `${L.name}-Browser`, v = victim.name;
+      if (elim) ok(after[v][1] === before[v][1] - 1 && after[me][1] === Math.min(5, before[me][1] + 1), `${N}: stealing takes a life (${v} ${before[v][1]} → ${after[v][1]} lives)`);
+      else { const amt = Math.min(300, before[v][0]); ok(after[v][0] === before[v][0] - amt && after[me][0] === before[me][0] + amt, `${N}: stealing moves ${amt} points (${v} ${before[v][0]} → ${after[v][0]}, ${me} ${before[me][0]} → ${after[me][0]})`); }
+      const note = await bp.textContent('#stealNote'), term = await bp.evaluate(() => document.getElementById('termBody').innerText);
+      ok(got && got.from === victim.id && /^You stole/.test(note) && /stole/.test(term), `${N}: everyone is told ("${got && got.text}"), and it appears in the terminal`);
+      await L.host.waitForFunction(() => H.state.phase === 'countdown' || H.state.phase === 'final', null, { timeout: 15000 });
+      const gap = (Date.now() - t0) / 1000;
+      ok(gap < 5, `${N}: once the steal is chosen, the next round starts after the usual short countdown (${gap.toFixed(1)} s)`);
+    } catch (e) { fail(`${L.name}: steal checks stopped: ${e.message.split('\n')[0]}`); }
+  }
+
   const scripts = [];
+  scripts.push(streakClass(EXTRAS[2]), streakClass(EXTRAS[3]));
   scripts.push(trioClass(EXTRAS[0]).catch(e => fail(`C: checks stopped: ${e.message.split('\n')[0]}`)));
   scripts.push(practiceClass(EXTRAS[1]));
   if (LOBBIES[0]) scripts.push(scenarioOne(LOBBIES[0]).catch(e => fail(`${LOBBIES[0].name}: checks stopped: ${e.message.split('\n')[0]}`)));
@@ -514,6 +596,7 @@ async function startServer() {
     L.done = true; log(`class ${L.name}: match over`);
   }));
   await EXTRAS[1].host.waitForFunction(() => H.state && H.state.phase === 'final', null, { timeout: 15 * 60000 }).catch(() => fail('D: the Elimination match never finished'));
+  for (const L of EXTRAS.slice(2)) await L.host.waitForFunction(() => H.state && H.state.phase === 'final', null, { timeout: 10 * 60000 }).catch(() => fail(`${L.name}: the match never finished`));
   EXTRAS.forEach(L => { L.done = true; });
   await Promise.all(scripts);
   if (loadTimer) clearInterval(loadTimer);
@@ -545,6 +628,8 @@ async function startServer() {
     ok(wasted === 0, `all classes: no full game updates were sent just because someone's cards moved (${wasted})`); }
   { const all = LOBBIES.flatMap(L => L.sims), rounds = ROUNDS;
     console.log(`Messages per simulated phone per round: ${(all.reduce((n, x) => n + x.statesIn, 0) / all.length / rounds).toFixed(1)} full game updates, ${(all.reduce((n, x) => n + x.progressIn, 0) / all.length / rounds).toFixed(1)} opponent card updates`); }
+  { const st = LOBBIES.reduce((n, L) => n + (L.steals || 0), 0), lap = LOBBIES.reduce((n, L) => n + (L.stealsLapsed || 0), 0);
+    console.log(`Steals by simulated phones in the big classes: ${st} made, ${lap} left to run out`); }
   if (EXTRAS[0].trios) console.log(`Class C: times each player was in the group of three: ${[...EXTRAS[0].trios.values()].join(', ')}`);
   console.log(`Class D (Elimination): ${EXTRAS[1].rounds.length} rounds`);
   if (load.length) { const c = load.map(m => m.cpu), r = load.map(m => m.rss);

@@ -579,9 +579,9 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 @keyframes netSpin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.net-banner::before{animation:none}}
 
-/* Join screen: link for teachers to the host screen */
-.host-link{margin-top:10px;font-size:13px;color:#444}
-.host-link a{color:#0645ad;font-weight:bold}
+/* Join screen: button for teachers to open the host screen (a link styled like the Join button) */
+.host-link{margin-top:10px}
+a.xp-btn{display:inline-block;text-decoration:none;color:inherit;text-align:center;box-sizing:border-box}
 /* Host: Pause button shows when the game is paused */
 #hPause.on{background:linear-gradient(180deg,#ffe58a,#f2c230);border-color:#8a6a00}
 /* Player help: short sections */
@@ -592,3 +592,51 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 .help-body kbd{font:12px var(--ui);border:1px solid #999;border-radius:3px;padding:0 4px;background:#f4f4f4}
 #helpDlg .dialog{max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);display:flex;flex-direction:column}
 #helpDlg .dialog-body{overflow-y:auto;min-height:0}
+
+/* ---------- Terminal window: who beat whom, as it happens ---------- */
+.term-slot{width:min(560px,100%)}
+.term{border:1px solid #0a246a;border-radius:6px 6px 2px 2px;overflow:hidden;box-shadow:2px 3px 8px rgba(0,0,0,.4);background:#000}
+.term-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 4px 2px 8px;
+  background:linear-gradient(180deg,#0997ff 0%,#0053ee 8%,#0050ee 40%,#0066ff 88%,#0055f5 100%);color:#fff;font:bold 12px var(--ui);text-shadow:1px 1px #0f1089}
+.term-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.term-title::before{content:'';display:inline-block;width:12px;height:10px;margin-right:6px;vertical-align:-1px;background:#000;border:1px solid #c0c0c0;box-shadow:inset 2px 2px 0 -1px #c0c0c0}
+.term-btns{display:flex;gap:2px}
+.term-btns i{font-style:normal;width:16px;height:14px;display:grid;place-items:center;border:1px solid #fff;border-radius:3px;font-size:10px;line-height:1;background:linear-gradient(180deg,#3c8cff,#1b5fe0)}
+.term-btns i:last-child{background:linear-gradient(180deg,#e8775b,#c7381d)}
+.term-body{font:13px/1.45 "Lucida Console","Consolas","Courier New",monospace;color:#c0c0c0;padding:5px 8px 6px;min-height:calc(3 * 1.45em + 11px);text-align:left}
+.term-line{white-space:pre-wrap;overflow-wrap:anywhere}
+.term-line.steal{color:#ffd23a}
+.term-line.idle{color:#808080}
+.term-line.typing{white-space:nowrap;overflow:hidden;width:0;max-width:100%;animation:termType .9s steps(var(--chars)) forwards}
+@keyframes termType{to{width:calc(var(--chars) * 1ch)}}
+.term-cursor{display:inline-block;color:#c0c0c0;animation:termBlink 1s steps(1) infinite}
+@keyframes termBlink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.term-cursor{animation:none}}
+@media (max-width:520px){.term-body{font-size:12px}}
+/* Host: bigger terminal under the races */
+.host-left{display:flex;flex-direction:column;gap:14px;min-width:0}
+.host-left .term-slot{width:100%}
+.host-left .term-body{font-size:clamp(14px,1.1vw,18px);line-height:1.35;min-height:calc(4 * 1.35em + 11px);padding:4px 10px 5px}
+.host-game.final .host-left{display:none}
+
+/* ---------- Steal: three race wins in a row ---------- */
+.steal-box{margin:4px 0 8px;padding:8px 10px;border:2px solid #e09a00;border-radius:6px;background:linear-gradient(180deg,#fff7d6,#ffe9a3);animation:stealPulse 1.2s ease-in-out infinite alternate}
+@keyframes stealPulse{to{box-shadow:0 0 0 4px rgba(255,190,40,.4)}}
+.steal-head{font-weight:bold;margin-bottom:6px}
+.steal-list{display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow-y:auto}
+.steal-list .xp-btn{padding:4px 10px;min-width:0;display:inline-flex;align-items:center;gap:6px}
+.steal-list .xp-btn small{color:#555}
+.steal-time{font-size:12px;color:#5a4000;margin-top:6px}
+.steal-note{margin:4px 0 8px;font-weight:bold;color:#7a4b00;background:#fff3c4;border:1px solid #e0b84a;border-radius:4px;padding:5px 9px;animation:stealPop .5s ease-out}
+.steal-note.bad{color:#a00000;background:#ffe2dc;border-color:#e08a7a}
+.steal-note.good{color:#1d6b00;background:#e2f7d6;border-color:#8cc46d}
+@keyframes stealPop{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.steal-box,.steal-note{animation:none}}
+/* Phones: the terminal moves up under the message and shows just the latest line, so it's always in view */
+@media (max-width:700px){
+  #board>*{order:2}
+  #board>#msg{order:0}
+  #board>.term-slot{order:1}
+  #board .term-body{min-height:0;padding:3px 8px}
+  #board .term-bar{font-size:11px;padding:1px 4px 1px 6px}
+}

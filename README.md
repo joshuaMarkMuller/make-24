@@ -16,7 +16,7 @@ Open `public/index.html` in a browser. No server or internet needed.
 
 ## Class race
 
-1. The teacher opens the **host screen** (`/host.html`, or **Host a game** on the home page), which shows a lobby code.
+1. The teacher opens the **host screen** (`/host.html`, or the **Host a Game** button on the home page), which shows a lobby code.
 2. Up to 24 students open the game's website, type the code, pick an emoji and type their name.
 3. The teacher chooses the game mode, the number of cards (4 or 5) and, for a points game, the number of rounds (1–10), then presses **Start Match**.
 
@@ -26,6 +26,8 @@ There are two game modes:
 
 - **Points:** faster answers score more points, with a bonus for finishing first in your group. Most points after the last round wins.
 - **Elimination:** everyone starts with 3, 4 or 5 lives (the host chooses). The first in each group to make 24 keeps their lives and everyone else in the group loses one. If nobody in a group makes 24, they all lose one. Players on 0 lives are out, but keep getting the same cards to practise on for fun. The last player standing wins.
+
+Win your race three rounds in a row and you get to **steal**: pick another player and take 300 points from them (in Elimination, a life from someone with two or more). A small terminal-style window on every screen lists who beat whom in each race, and any steals, as they happen.
 
 Each player's emoji shows next to their name. It bounces when they win their race (or the match) and droops when they lose.
 
@@ -48,7 +50,7 @@ Open `http://localhost:3000/host.html`. Students on the same Wi-Fi join at the a
 
 ## Testing
 
-The class test plays two whole classes at the same time (24 players each, 10 rounds) and checks that nothing breaks. During the matches it drops connections, reloads pages, pauses, bonks, floods card taps, tries to sneak into a closed lobby and checks the scores every round. Two small extra classes play alongside: one with an odd number of players (to check the group of three is shared around) and an Elimination class (to check knocked-out players can keep practising). It takes about 7 minutes.
+The class test plays two whole classes at the same time (24 players each, 10 rounds) and checks that nothing breaks. During the matches it drops connections, reloads pages, pauses, bonks, steals, floods card taps, tries to sneak into a closed lobby and checks the scores every round. Two small extra classes play alongside: one with an odd number of players (to check the group of three is shared around) and an Elimination class (to check knocked-out players can keep practising). It takes about 7 minutes.
 
 ```
 npm install                        # first time only

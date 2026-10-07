@@ -22,6 +22,10 @@ const FIRST_BONUS = 100;           // extra points for being first in your group
 const NEXT_MS = 3000;              // countdown on the results before the next round starts by itself
 const OUT_OF_TIME_MS = 1900;       // players' screens show “Out of time!” this long before the results
 const BONK = 500;
+const STREAK = 3;                  // race wins in a row that earn a steal
+const STEAL = 300;                 // points mode: points a steal takes (elimination: one life)
+const STEAL_MS = 10000;            // how long the next round waits for a stealer to choose
+const FEED_KEEP = 8;               // lines kept for the screens' little terminal window
 const LIVES = 3;                   // elimination mode: default lives each player starts with (host chooses 3–5)
 const PREC = { '+': 1, '−': 1, '×': 2, '÷': 2 };
 
@@ -81,6 +85,8 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     mode: 'points',          // 'points' (most points after N rounds wins) or 'elim' (lives, last one standing wins)
     startLives: LIVES,       // elimination: lives each player starts with (host chooses 3–5)
     hold: false,             // host paused: the next round waits until the host resumes
+    stealUntil: 0,           // a stealer is choosing: the next round waits until then (at most)
+    feed: [], feedSeq: 0,    // race results and steals, shown in the little terminal window
     matchRounds: 5,          // rounds in this match (host chooses 1–10; points mode only)
     cardCount: 4,            // cards per puzzle (host chooses 4 or 5); the target is always 24
     matchRound: 0,           // round number within the current match (0 = not started)
@@ -120,6 +126,9 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       matchRounds: game.matchRounds,
       mode: game.mode,
       hold: game.hold,
+      stealMsLeft: game.phase === 'result' && game.stealUntil ? Math.max(0, game.stealUntil - Date.now()) : null,
+      steal: { streak: STREAK, points: STEAL },
+      feed: game.feed.slice(-FEED_KEEP),
       maxLives: game.startLives,
       cardCount: game.cardCount,
       hostId: hostId(),
@@ -134,7 +143,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       nextInMs: game.phase === 'result' && game.nextAt ? Math.max(0, game.nextAt - Date.now()) : null,   // auto-start of the next round
       players: [...game.players.entries()].map(([id, p]) => ({
         id, name: p.name, emoji: p.emoji, lives: p.lives, out: p.out, outRound: p.outRound, lostLife: p.lostLife, points: p.points, wins: p.wins, gained: p.gained, bonks: p.bonks,
-        group: p.group, gaveUp: p.gaveUp, solved: p.solved, beaten: !!p.beaten,
+        group: p.group, gaveUp: p.gaveUp, solved: p.solved, beaten: !!p.beaten, streak: p.streak || 0, canSteal: !!p.canSteal,
         // Shape of the player's board for their opponents' face-down view (never the numbers)
         layout: p.layout, sel: p.sel, moveSeq: p.moveSeq, lastMove: p.lastMove,
       })),
@@ -184,10 +193,11 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   /* ---------- Rounds ---------- */
   function resetMatch() {
     game.matchRound = 0;
+    game.feed = []; game.stealUntil = 0;
     game.pairCounts.clear();
     game.groups = [];
     game.result = null;
-    for (const p of [...game.players.values(), ...game.departed.values()]) { p.points = 0; p.wins = 0; p.gained = 0; p.bonks = 0; p.lives = game.startLives; p.out = false; p.outRound = 0; p.lostLife = false; p.trios = 0; p.group = null; p.gaveUp = false; p.solved = false; resetBoardShape(p); }
+    for (const p of [...game.players.values(), ...game.departed.values()]) { p.points = 0; p.wins = 0; p.gained = 0; p.bonks = 0; p.lives = game.startLives; p.out = false; p.outRound = 0; p.lostLife = false; p.trios = 0; p.streak = 0; p.canSteal = false; p.group = null; p.gaveUp = false; p.solved = false; resetBoardShape(p); }
   }
 
   function startRound() {
@@ -195,7 +205,9 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     if (game.matchRound === 0) resetMatch();
     const ids = [...game.players.entries()].filter(([, p]) => !(game.mode === 'elim' && p.out)).map(([id]) => id);
     game.groups = drawGroups(ids).map((members, i) => ({ id: i, members, winnerId: null, solvers: [], done: false }));
-    for (const p of game.players.values()) { p.group = null; p.gaveUp = false; p.solved = false; p.beaten = false; p.gained = 0; p.lostLife = false; resetBoardShape(p); }
+    game.stealUntil = 0;
+    for (const p of game.departed.values()) p.canSteal = false;
+    for (const p of game.players.values()) { p.canSteal = false; p.group = null; p.gaveUp = false; p.solved = false; p.beaten = false; p.gained = 0; p.lostLife = false; resetBoardShape(p); }
     game.groups.forEach(g => g.members.forEach(id => { game.players.get(id).group = g.id; }));
 
     game.phase = 'countdown';
@@ -250,12 +262,16 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       game.result.endedEarly = endMatch && game.matchRound < game.matchRounds;
       game.phase = endMatch || game.matchRound >= game.matchRounds ? 'final' : 'result';
     }
+    if (!endMatch) updateStreaks();
     // Between rounds: once the results are on screen, count down 3 seconds and start the next round
     game.nextAt = 0;
     if (game.phase === 'result') {
+      // Three race wins in a row earns a steal; the next round waits (up to 10 s) while they choose
+      for (const p of game.players.values()) if ((p.streak || 0) >= STREAK && stealTargets(p).length) { p.canSteal = true; p.streak = 0; }
+      game.stealUntil = [...game.players.values()].some(p => p.canSteal) ? Date.now() + STEAL_MS : 0;
       // …and give a just-beaten player's breaking-heart animation (2.2 s) time to finish first
       const heartLeft = game.mode === 'elim' && game.lastBeatenAt ? Math.max(0, 2200 - (Date.now() - game.lastBeatenAt)) : 0;
-      const wait = Math.max(reason === 'time' ? OUT_OF_TIME_MS : 0, heartLeft) + NEXT_MS;
+      const wait = Math.max(Math.max(reason === 'time' ? OUT_OF_TIME_MS : 0, heartLeft) + NEXT_MS, game.stealUntil ? STEAL_MS : 0);
       if (!game.hold) scheduleNext(wait);
     }
     broadcast();
@@ -266,6 +282,31 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     game.nextAt = Date.now() + wait;
     game.timers.push(setTimeout(() => { if (game.phase === 'result' && !game.hold && game.players.size >= 2) startRound(); }, wait));
   }
+
+  /* ---------- Win streaks and steals ---------- */
+  // After each round: winning your race adds to your streak; anything else (in a race) ends it
+  function updateStreaks() {
+    for (const g of game.groups) for (const id of g.members) {
+      const p = game.players.get(id);
+      if (p) p.streak = g.winnerId === id ? (p.streak || 0) + 1 : 0;
+    }
+  }
+  // Who a stealer may pick: Points, anyone else with points; Elimination, anyone still in with 2+ lives
+  function stealTargets(p) {
+    return [...game.players.values()].filter(t => t !== p && (game.mode === 'elim' ? !t.out && t.lives >= 2 : t.points > 0));
+  }
+  function addFeed(text, kind) {
+    game.feed.push({ n: ++game.feedSeq, text, kind, round: game.matchRound });
+    if (game.feed.length > FEED_KEEP * 3) game.feed.splice(0, game.feed.length - FEED_KEEP);
+  }
+  // Everyone who could steal has chosen (or left): carry on with the usual 3-second countdown
+  function stealsDone(quiet) {
+    if (!game.stealUntil || game.phase !== 'result' || [...game.players.values()].some(q => q.canSteal)) return;
+    game.stealUntil = 0;
+    if (!game.hold) { clearTimers(); scheduleNext(NEXT_MS); }
+    if (!quiet) broadcast();
+  }
+  const andList = a => (a.length < 2 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
 
   /* ---------- Elimination mode ---------- */
   const alivePlayers = () => [...game.players.values()].filter(p => !p.out);
@@ -556,7 +597,11 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       const time = Number.isFinite(ct) && ct >= 0 && ct <= serverTime + 0.25 && ct >= serverTime - 3 ? Math.min(ct, serverTime) : serverTime;
       const first = !g.winnerId;
       const points = roundPoints(time) + (first ? FIRST_BONUS : 0);
-      if (first) { g.winnerId = socket.id; p.wins += 1; }
+      if (first) {
+        g.winnerId = socket.id; p.wins += 1;
+        const others = g.members.filter(id => id !== socket.id).map(id => game.players.get(id)?.name).filter(Boolean);
+        if (others.length) addFeed(`${p.name} beats ${andList(others)}`, 'win');
+      }
       // Elimination: once someone in the group makes 24, the race is over for everyone else in it
       if (first && game.mode === 'elim') {
         for (const id of g.members) {
@@ -570,6 +615,27 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       reply?.({ ok: true, time, points, first, bonus: first ? FIRST_BONUS : 0 });
       broadcast();
       checkRoundOver();
+    });
+
+    // A player on a winning streak picks who to steal from (between rounds)
+    socket.on('steal', (targetId, reply) => {
+      const p = game.players.get(socket.id), t = game.players.get(targetId);
+      if (!p || !p.canSteal || game.phase !== 'result') return reply?.({ ok: false, error: 'You can’t steal right now.' });
+      if (!t || !stealTargets(p).includes(t)) return reply?.({ ok: false, error: 'You can’t steal from that player. Pick someone else.' });
+      p.canSteal = false;
+      let amount = 0, text;
+      if (game.mode === 'elim') {
+        t.lives -= 1; p.lives = Math.min(game.startLives, p.lives + 1);
+        text = `${p.name} stole a life from ${t.name}`;
+      } else {
+        amount = Math.min(STEAL, t.points); t.points -= amount; p.points += amount;
+        text = `${p.name} stole ${amount} points from ${t.name}`;
+      }
+      addFeed(text, 'steal');
+      reply?.({ ok: true, amount, life: game.mode === 'elim', name: t.name });
+      broadcast();
+      emit('stolen', { by: socket.id, from: targetId, byName: p.name, fromName: t.name, amount, life: game.mode === 'elim', text });
+      stealsDone();
     });
 
     socket.on('giveUp', () => {
@@ -594,6 +660,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
         game.departed.set('n:' + p.name.toLowerCase(), p);
       }
       emit('notice', `${p.name} left the game.`);
+      if (p.canSteal) stealsDone(true);   // (the update below tells everyone)   // the steal stays theirs if they come straight back; otherwise the round moves on
       if (game.phase !== 'lobby' && game.players.size < 2) return backToLobby('Not enough players left, so the match has ended.');
       if (checkLastStanding()) return;
       if (p.group !== null && game.groups[p.group]) groupFinishedCheck(game.groups[p.group]);

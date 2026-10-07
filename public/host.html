@@ -101,10 +101,13 @@
       </div>
       <div class="host-banner" id="hBanner"></div>
       <div class="host-cols">
-        <fieldset class="host-panel">
-          <legend>Races</legend>
-          <div class="race-list" id="hRaces"></div>
-        </fieldset>
+        <div class="host-left">
+          <fieldset class="host-panel">
+            <legend>Races</legend>
+            <div class="race-list" id="hRaces"></div>
+          </fieldset>
+          <div id="hTermSlot" class="term-slot"></div>
+        </div>
         <fieldset class="host-panel scoreboard">
           <legend>Scoreboard</legend>
           <div id="hScores"></div>
@@ -171,6 +174,7 @@
         <li>Once the match starts the lobby is closed: new players can’t join, but anyone whose connection drops or who reloads the page rejoins by themselves and keeps their score or lives (on another device, they type exactly the same name).</li>
         <li>Watch each race and the live scoreboard here. After each round's results, the next round starts by itself after a 3-second countdown.</li>
       </ol>
+      <p><b>Steals:</b> a player who wins their race three rounds in a row picks someone to steal 300 points from (in Elimination, a life from someone with two or more lives). The next round waits up to 10 seconds while they choose. The race window under the races lists who beat whom and every steal.</p>
       <p><b>Names:</b> in the waiting room, click ✎ next to a player's name to change it.</p>
       <p><b>Bonk:</b> if you suspect someone is cheating, press <b>Bonk</b> next to their name on the scoreboard, then press <b>Sure?</b> within 3 seconds to confirm. It takes 500 points from them (never below 0). Everyone sees their row shake with a big “BONK!”.</p>
       <p><b>Pause:</b> press <b>Pause After This Round</b> during a round (or <b>Pause</b> on the results) and the next round won't start until you press <b>Resume</b> or <b>Start Next Round</b>. Players see that the game is paused.</p>
@@ -183,6 +187,7 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/emoji.js"></script>
+<script src="js/term.js"></script>
 <script src="js/host.js"></script>
 </body>
 </html>

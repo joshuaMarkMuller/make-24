@@ -54,10 +54,11 @@ $('emojiGrid').onkeydown=e=>{e.stopPropagation();if(e.key==='Escape'){openGrid(f
 document.addEventListener('click',()=>{if(!$('emojiGrid').hidden)openGrid(false)});
 {let saved=null;try{saved=sessionStorage.getItem('make24-emoji')}catch{}setEmoji(EMOJIS.some(x=>x[0]===saved)?saved:randomEmoji())}
 $('codeInput').oninput=()=>{const c=cleanCode($('codeInput').value);if($('codeInput').value!==c)$('codeInput').value=c};
-// A private token for this device (never shown). If the connection drops, or the page is
-// reloaded, the server uses it to give the player their own seat back, with their score or lives.
-const TOKEN=(()=>{let t='';try{t=localStorage.getItem('make24-device')||''}catch{}
-  if(!/^[a-z0-9]{16,}$/.test(t)){t=[...crypto.getRandomValues(new Uint8Array(12))].map(b=>b.toString(36).padStart(2,'0')).join('');try{localStorage.setItem('make24-device',t)}catch{}}
+// A private token for this tab (never shown). If the connection drops, or the page is reloaded,
+// the server uses it to give the player their own seat back, with their score or lives.
+// It's kept per tab, so several tabs in one browser are separate players (handy for testing).
+const TOKEN=(()=>{let t='';try{t=sessionStorage.getItem('make24-tab')||''}catch{}
+  if(!/^[a-z0-9]{16,}$/.test(t)){t=[...crypto.getRandomValues(new Uint8Array(12))].map(b=>b.toString(36).padStart(2,'0')).join('');try{sessionStorage.setItem('make24-tab',t)}catch{}}
   return t})();
 function join(code,name,emoji,auto){
   socket.emit('join',{code,name,emoji,token:TOKEN},res=>{
@@ -120,14 +121,14 @@ socket.on('progress',d=>{
   renderOpps(g.members.filter(id=>id!==R.myId).map(id=>s.players.find(q=>q.id===id)).filter(Boolean),s,g);
 });
 socket.on('notice',t=>{R.notice=t;R.noticeAt=Date.now();render()});
-socket.on('state',s=>{R.state=s;R.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;catchUp();render()});
+socket.on('state',s=>{R.state=s;R.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;R.stealAt=s.stealMsLeft!=null?performance.now()+s.stealMsLeft:0;catchUp();render()});
 // The host changed my name in the waiting room
 socket.on('renamed',name=>{R.me=name;$('youPanel').textContent=`You: ${R.emoji||''} ${name}`;R.notice=`The host changed your name to ${name}.`;R.noticeAt=Date.now();render()});
 socket.on('round',r=>{
   // Every group gets the same cards; suits are just for looks
   R.nums=r.nums;R.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);R.boardRound=r.round;R.pendingSubmit=null;
   clearTimeout(R.wrongTimer);R.wrongIdx=null;clearTimeout(R.heartTimer);$('heartLoss').hidden=true;
-  resetBoard();R.locked=true;hide('resultDlg');stopCascade();clearOpps();clearInterval(R.nextTick);SFX.stop('cascade');
+  resetBoard();R.locked=true;hide('resultDlg');$('stealNote').hidden=true;$('stealBox').hidden=true;stopCascade();clearOpps();clearInterval(R.nextTick);SFX.stop('cascade');
   R.deadline=performance.now()+r.countdownMs+r.limitMs;R.limitMs=r.limitMs;R.practice=false;
   if(!R.me)return;
   showScreen('countdown');
@@ -242,7 +243,42 @@ function render(){
   if(s.phase==='playing'&&me.gaveUp)setMsg('You gave up. Waiting for the others…','bad');
 
   if((s.phase==='result'||s.phase==='final')&&s.result&&R.shownResultRound!==s.round){R.shownResultRound=s.round;showResult(s.result,s)}
+  renderTerm($('termBody'),s,matchMedia('(max-width:700px)').matches?1:4);
+  renderSteal(s,me);
 }
+
+// Three race wins in a row: on the results, pick who to steal from
+function renderSteal(s,me){
+  const box=$('stealBox');
+  if(!(s.phase==='result'&&me&&me.canSteal)){box.hidden=true;box.dataset.sig='';return}
+  const elim=isElim(s);
+  const targets=s.players.filter(t=>t.id!==me.id&&(elim?!t.out&&t.lives>=2:t.points>0)).sort(elim?(a,b)=>b.lives-a.lives:(a,b)=>b.points-a.points);
+  const sig=targets.map(t=>t.id+':'+t.points+':'+t.lives).join();
+  if(box.dataset.sig!==sig){
+    box.dataset.sig=sig;
+    box.innerHTML=`<div class="steal-head">🔥 ${s.steal.streak} wins in a row! Steal ${elim?'a life':s.steal.points+' points'} from:</div>`+
+      `<div class="steal-list">${targets.map(t=>`<button type="button" class="xp-btn" data-id="${esc(t.id)}">${emojiTag(s,t)}${esc(t.name)} <small>${elim?hearts(s,t):t.points.toLocaleString()}</small></button>`).join('')}</div>`+
+      `<div class="steal-time" id="stealTime"></div>`;
+  }
+  box.hidden=false;
+}
+$('stealBox').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-id]');if(!b||b.disabled)return;
+  $('stealBox').querySelectorAll('button').forEach(x=>x.disabled=true);
+  socket.emit('steal',b.dataset.id,res=>{
+    if(!res||!res.ok){$('stealBox').querySelectorAll('button').forEach(x=>x.disabled=false);const t=document.getElementById('stealTime');if(t)t.textContent=res?res.error:'Try again.'}
+  });
+});
+// Someone stole points (or a life): everyone sees who from whom
+socket.on('stolen',d=>{
+  const what=d.life?'a life':`${d.amount} points`;
+  const n=$('stealNote');
+  n.textContent=d.by===R.myId?`You stole ${what} from ${d.fromName}!`:d.from===R.myId?`${d.byName} stole ${what} from you!`:`${d.byName} stole ${what} from ${d.fromName}`;
+  n.className='steal-note'+(d.from===R.myId?' bad':d.by===R.myId?' good':'');n.hidden=false;
+  if(d.from===R.myId){R.notice=n.textContent;R.noticeAt=Date.now()}
+  const st=R.state;
+  if(st&&(st.phase==='result'||st.phase==='final')&&R.shownResultRound===st.round)renderScoreRows(st,false,d.from,d.amount,'STOLEN!');
+});
 
 // I made 24 while others are still racing: the cascade plays and the scoreboard shows on top
 function showSolved(s,me,first){
@@ -322,7 +358,12 @@ function showResult(res,s){
     // …unless the host has paused, in which case it waits for them
     const f=()=>{const st=R.state||s,n=R.nextAt?Math.max(1,Math.min(3,Math.ceil((R.nextAt-performance.now())/1000))):3;
       const pre=isElim(s)?`${s.players.filter(p=>!p.out).length} players still in.`:`${left} round${left>1?'s':''} to go.`;
-      $('againNote').textContent=st.hold?`${pre} Paused by the host. The next round starts when they’re ready.`:`${pre} Next round in ${n}…`};
+      const stealers=st.phase==='result'?st.players.filter(p=>p.canSteal):[];
+      const secs=R.stealAt?Math.max(0,Math.ceil((R.stealAt-performance.now())/1000)):0;
+      const tEl=document.getElementById('stealTime');if(tEl)tEl.textContent=st.hold?'Choose before the next round starts.':`Choose within ${secs} s or the steal is lost.`;
+      $('againNote').textContent=st.hold?`${pre} Paused by the host. The next round starts when they’re ready.`
+        :stealers.length?(stealers.some(p=>p.id===R.myId)?`${pre} Choose who to steal from… ${secs}`:`${pre} ${listNames(stealers.map(p=>p.name))} ${stealers.length>1?'are':'is'} choosing who to steal from… ${secs}`)
+        :`${pre} Next round in ${n}…`};
     f();R.nextTick=setInterval(f,200);
   }
   renderCards();
@@ -343,7 +384,7 @@ function showResult(res,s){
 // Scoreboard: one progress bar per player. The top score fills the bar; the others are
 // scaled against it, so the bar lengths show the gap between players. grow=true starts
 // each bar at last round's score so growScores() can animate it; bonkId shakes that row.
-function renderScoreRows(s,grow,bonkId,bonkTaken){
+function renderScoreRows(s,grow,bonkId,bonkTaken,popLabel='BONK!'){
   const elim=isElim(s);
   const rows=standings(s);
   const top=rows[0],tie=rows.length>1&&samePlace(s,rows[1],top);
@@ -360,14 +401,14 @@ function renderScoreRows(s,grow,bonkId,bonkTaken){
     const bonked=p.id===bonkId;
     return `<div class="sb-row${p.id===R.myId?' me':''}${i===0&&!tie&&max>0&&!(elim&&p.out)?' lead':''}${elim&&p.out?' out':''}${bonked?' bonked':''}">`+
       `<span class="sb-rank">${level?'':tied?rank+'=':rank}</span>`+
-      `<span class="sb-name"><span class="sb-line">${emojiTag(s,p)}<b>${esc(p.name)}</b>${p.id===R.myId?' <span class="you">(you)</span>':''}</span><small>${elim&&p.out?`Out in round ${p.outRound} · `:''}${p.wins} race${p.wins===1?'':'s'} won${p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:''}</small></span>`+
+      `<span class="sb-name"><span class="sb-line">${emojiTag(s,p)}<b>${esc(p.name)}</b>${p.id===R.myId?' <span class="you">(you)</span>':''}</span><small>${elim&&p.out?`Out in round ${p.outRound} · `:''}${p.wins} race${p.wins===1?'':'s'} won${p.streak>=2?` · 🔥 ${p.streak} in a row`:''}${p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:''}</small></span>`+
       (elim
         ?`<span class="sb-hearts" aria-label="${p.lives} lives">${hearts(s,p)}</span>`+
           `<span class="sb-pts">${bonked?'<span class="gain minus">−❤️</span>':grow&&p.lostLife?'<span class="gain minus">−❤️</span>':''}</span>`
         :`<span class="sb-track"><span class="sb-fill" data-to="${pct(val(p))}" style="width:${pct(before)}%"></span></span>`+
           `<span class="sb-pts"><span class="sb-num" data-from="${before}" data-to="${p.points}">${before.toLocaleString()}</span>`+
           `${bonked?`<span class="gain minus">−${bonkTaken}</span>`:grow&&p.gained?`<span class="gain">+${p.gained}</span>`:''}</span>`)+
-      (bonked?'<span class="bonk-pop" aria-hidden="true">BONK!</span>':'')+`</div>`;
+      (bonked?`<span class="bonk-pop" aria-hidden="true">${popLabel}</span>`:'')+`</div>`;
   }).join('');
 }
 
@@ -646,6 +687,7 @@ document.querySelectorAll('.menu-title').forEach(t=>{
 });
 document.addEventListener('click',closeMenus);
 document.querySelectorAll('[data-about]').forEach(b=>b.onclick=e=>{e.stopPropagation();closeMenus();show('aboutDlg')});
+$('termSlot').innerHTML=termHTML('termBody','C:\\MAKE24\\RACES.EXE');
 $('soundLabel').textContent=`Sound: ${SFX.on?'On':'Off'}`;
 const ACTIONS={undo,reset,giveUp,howto:()=>show('helpDlg'),
   sound:()=>{SFX.setOn(!SFX.on);$('soundLabel').textContent=`Sound: ${SFX.on?'On':'Off'}`},

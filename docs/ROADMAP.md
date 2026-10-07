@@ -83,21 +83,21 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Prompts** | **112** | | messages you've sent Claude so far |
-| **Energy** | **≈ 21.4 kWh** | 8.8–41.5 kWh | about 214 boils of a full electric kettle (88–415 boils) |
-| **Water** | **≈ 88 litres** | 9–170 litres | about one short shower |
-| **Cost** | **≈ A$6.38** | A$2.52–12.38 | energy ≈ A$6.04 plus water ≈ A$0.34, at Victorian household prices |
-| **Cost per prompt** | **≈ 5.7c** | 2.2–11.1c | average: total cost ÷ number of prompts |
+| **Prompts** | **117** | | messages you've sent Claude so far |
+| **Energy** | **≈ 23.0 kWh** | 9.5–44.6 kWh | about 230 boils of a full electric kettle (95–446 boils) |
+| **Water** | **≈ 94 litres** | 9–183 litres | about one short shower |
+| **Cost** | **≈ A$6.85** | A$2.71–13.30 | energy ≈ A$6.49 plus water ≈ A$0.37, at Victorian household prices |
+| **Cost per prompt** | **≈ 5.9c** | 2.3–11.4c | average: total cost ÷ number of prompts |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
 | Activity | Share | Energy |
 |---|---|---|
-| Reading and writing project files | 27% | ≈ 5.8 kWh |
-| Running code and tests | 33% | ≈ 7.1 kWh |
-| Claude's built-in instructions (re-read every step) | 21% | ≈ 4.5 kWh |
-| Conversation and replies | 12% | ≈ 2.6 kWh |
-| Syncing files to the computer | 7% | ≈ 1.5 kWh |
+| Reading and writing project files | 26% | ≈ 6.0 kWh |
+| Running code and tests | 34% | ≈ 7.8 kWh |
+| Claude's built-in instructions (re-read every step) | 21% | ≈ 4.8 kWh |
+| Conversation and replies | 12% | ≈ 2.8 kWh |
+| Syncing files to the computer | 6% | ≈ 1.4 kWh |
 
 **How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
 
@@ -117,6 +117,11 @@ Hausfather, Z. (2026, August 12). The real energy use of agentic AI. *The Climat
 Li, P., Yang, J., Islam, M. A., & Ren, S. (2023). *Making AI less "thirsty": Uncovering and addressing the secret water footprint of AI models* (arXiv:2304.03271). arXiv. https://doi.org/10.48550/arXiv.2304.03271
 
 ## Change log
+- **2026-10-08** Class test extended for steals and the terminal window (two more small classes, E and F) and re-run: 67 checks passed, none failed.
+- **2026-10-08** Fixed: several tabs in one browser are separate players again (the rejoin token is now per tab), so the game can be tried out in one browser. Reloading or a dropped connection still rejoins automatically.
+- **2026-10-08** New: a small early-2000s terminal window on every player's screen and on the projector lists who beat whom as each race finishes ("Amira beats Ben and Chloe" for a group of three) and every steal.
+- **2026-10-08** New: win your race three rounds in a row to steal. The winner picks a player to take 300 points from (Elimination: a life from someone with two or more lives, which they gain up to their starting lives). The next round waits up to 10 seconds while they choose; everyone sees who stole from whom. Three more wins in a row are needed to steal again.
+- **2026-10-08** Join screen: "Host a Game" is now a button in the same style as Join (the "Teacher?" text is gone).
 - **2026-10-07** Stage 7 complete. Suggested improvements 13–17 built and all of Stage 7 passed the class test together (2 classes × 24 players × 10 rounds, plus an odd-numbered class and an Elimination class): 55 checks passed, none failed.
 - **2026-10-07** Built: card taps now send a small update (at most 10 a second per player) only to that player's opponents and the host, instead of the whole game to the whole class. The host's scoreboard, races and waiting-room list, and the players' waiting-room list, only redraw when something on them changes. Speed points are timed on the player's device (the server accepts it if it's up to 3 seconds less than its own time, otherwise uses its own). The group of three is shared around so the same players aren't stuck in it. In Elimination, players who are out keep getting the same cards to practise on, and it doesn't count.
 - **2026-10-07** Class test extended: floods card taps, checks wasted updates and redraws, times a delayed answer and an impossible one, and adds an odd-numbered class (group of three shared around: each player 4 or 5 times in 10 rounds) and an Elimination class (practice when out). Choosing a waiting-room setting that's already selected no longer re-sends the whole game.
@@ -124,7 +129,7 @@ Li, P., Yang, J., Islam, M. A., & Ren, S. (2023). *Making AI less "thirsty": Unc
 - **2026-10-07** Fixed (found by the class test): pressing Escape didn't close Help when it was open on top of the round results, which left that player's keyboard stuck for the rest of the match.
 - **2026-10-07** Class test added (`npm run test:class`, in `tests/`): plays two classes of 24 at the same time for 10 rounds and checks every round's groups, points and scores, plus dropped connections, page reloads, a second tab, outsiders trying to join, Pause/Resume, two-press Bonk, the player help, the Host a game link and hidden ranks. It ends with a pass/fail report. First full run: 43 checks passed, none failed; the server used about 1% CPU and 85 MB.
 - **2026-10-07** Built: the host can pause after the current round (Pause After This Round, or Pause on the results) and press Resume or Start Next Round; players and the projector show that it's paused. The player help screen is rewritten (joining with the code and emoji, each round, both game modes, giving up, keyboard). The home page has a "Host a game" link. Ranks are hidden while everyone is level, so nobody shows as "1=" at the start. All ready to test.
-- **2026-10-07** Claude usage updated (112 prompts). Prompts 102–104 were condensed out of the conversation record, so they're counted at the average cost per prompt.
+- **2026-10-07** Claude usage updated (117 prompts). Prompts 102–104 were condensed out of the conversation record, so they're counted at the average cost per prompt.
 - **2026-10-07** Built: a player whose connection drops (or who reloads the page) now rejoins automatically and keeps their seat, score and lives, using a private token saved on their device. A second tab on the same device takes over the seat. Bonk on the host screen now needs a second press ("Sure?") within 3 seconds. Both ready to test.
 - **2026-10-07** Added Stage 7: Suggested improvements, with 11 changes from the design review and a final criterion that the game has been tested with every change implemented. Real-world testing is now Stage 8.
 - **2026-10-07** Roadmap page: on the cost of each prompt chart, the dashed average line now runs across the whole chart and shows the average of every prompt so far (the same figure as the cost per prompt).

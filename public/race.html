@@ -55,7 +55,7 @@
             <div class="row"><span class="emoji-pick"><button type="button" id="emojiBtn" class="emoji-btn" aria-haspopup="true" aria-expanded="false" aria-controls="emojiGrid" title="Choose your emoji"></button><input type="hidden" id="emojiInput"><div id="emojiGrid" class="emoji-grid" role="dialog" aria-label="Choose your emoji" hidden></div></span><input type="text" id="nameInput" maxlength="16" autocomplete="off" placeholder="e.g. Josh">
               <button class="xp-btn default" type="submit">Join</button></div>
             <p class="hint" id="joinMsg"></p>
-            <p class="host-link">Teacher? <a href="/host.html">Host a game</a></p>
+            <div class="host-link"><a class="xp-btn default" id="hostBtn" href="/host.html">Host a Game</a></div>
           </div>
         </div>
       </form>
@@ -105,6 +105,8 @@
         <button class="xp-btn" id="resetBtn">Reset</button>
         <button class="xp-btn" id="giveUpBtn">Give Up</button>
       </div>
+      <!-- Who beat whom in the other races, as it happens -->
+      <div id="termSlot" class="term-slot"></div>
     </section>
     <canvas id="cascade" aria-hidden="true"></canvas>
     <!-- Elimination: beaten in your race, so your hearts show in the middle of the screen and one turns white -->
@@ -136,6 +138,9 @@
           <p id="resSub"></p>
         </div>
       </div>
+      <!-- Three race wins in a row: pick who to steal from -->
+      <div class="steal-box" id="stealBox" hidden></div>
+      <p class="steal-note" id="stealNote" role="status" hidden></p>
       <fieldset class="scoreboard">
         <legend>Scoreboard</legend>
         <div id="scoreRows"></div>
@@ -175,6 +180,9 @@
       <h3>Game modes</h3>
       <p><b>Points:</b> making 24 scores 1,000 points for an instant answer, dropping to 500 at 30 seconds. The first in your race gets 100 bonus points. Most points after the last round wins.</p>
       <p><b>Elimination:</b> everyone starts with the same number of lives. The first in your race to make 24 keeps their lives and everyone else in it loses one (all of you, if nobody makes it). Lose them all and you're out, but you still get the same cards each round to practise on (it doesn't count). The last player standing wins.</p>
+      <h3>Win three in a row</h3>
+      <p>Win your race three rounds in a row and you can <b>steal</b>: pick a player to take 300 points from (in Elimination, a life from someone with two or more). You have 10 seconds to choose. Then it takes three more wins in a row to steal again.</p>
+      <p>The little black window under your cards shows who beat whom in the other races, and any steals, as they happen.</p>
       <h3>Stuck?</h3>
       <p><b>Give Up</b> ends your round. In Points you score nothing that round. In Elimination it costs you a life. Your opponents can keep going.</p>
       <p>Your emoji bounces when you win a race and droops when you lose. Keyboard: <kbd>1</kbd>–<kbd>5</kbd> pick a card, <kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> pick an operation, <kbd>Backspace</kbd> undo, <kbd>R</kbd> reset.</p>
@@ -186,6 +194,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/solver.js"></script>
 <script src="js/emoji.js"></script>
+<script src="js/term.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/race.js"></script>
 </body>

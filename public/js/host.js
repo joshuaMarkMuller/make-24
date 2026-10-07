@@ -47,10 +47,17 @@ socket.on('bonked',b=>{
   H.bonks.set(b.id,{t:performance.now(),taken:b.taken,life:b.life});podiumShownFor=0;render();
   setTimeout(()=>{H.bonks.delete(b.id);render()},BONK_MS+50);
 });
+// A steal: the victim's row shakes with "STOLEN!", and the projector banner says who stole from whom
+socket.on('stolen',d=>{
+  H.bonks.set(d.from,{t:performance.now(),taken:d.amount,life:d.life,label:'STOLEN!'});H.lastSteal={text:d.text,round:H.state&&H.state.round};
+  podiumShownFor=0;render();
+  setTimeout(()=>{H.bonks.delete(d.from);render()},BONK_MS+50);
+});
 socket.on('state',s=>{
   H.state=s;
   if(s.timeLeftMs!=null)H.deadline=performance.now()+s.timeLeftMs;
   H.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;
+  H.stealAt=s.stealMsLeft!=null?performance.now()+s.stealMsLeft:0;
   render();
 });
 // One player's board changed (a small update, not the whole game): only the races panel needs redrawing
@@ -178,10 +185,13 @@ function renderGame(s){
   }else{
     const f=res&&res.fastest,n=res?res.solvedCount:0;
     const out=isElim(s)&&res&&res.knockedOut&&res.knockedOut.length?`  ·  Out: ${listNames(res.knockedOut)}`:'';
-    $('hBanner').textContent=(f?`${n} of ${s.players.length} made 24 · Fastest: ${f.name} in ${f.time.toFixed(1)} s`:'Nobody made 24 this round')+out+(res&&res.solution?`  ·  One answer: ${res.solution} = 24`:'')+(s.hold?'  ·  Paused':'');
+    const stealers=s.players.filter(p=>p.canSteal).map(p=>p.name);
+    const steal=stealers.length?`  ·  🔥 ${listNames(stealers)} ${stealers.length>1?'are':'is'} choosing who to steal from`:H.lastSteal&&H.lastSteal.round===s.round?`  ·  ${H.lastSteal.text}`:'';
+    $('hBanner').textContent=(f?`${n} of ${s.players.length} made 24 · Fastest: ${f.name} in ${f.time.toFixed(1)} s`:'Nobody made 24 this round')+out+(res&&res.solution?`  ·  One answer: ${res.solution} = 24`:'')+steal+(s.hold?'  ·  Paused':'');
   }
 
   renderRaces(s,res);
+  renderTerm($('hTermBody'),s,4);
   renderScores(s,rows);
   renderPodium(s,rows);
 
@@ -193,7 +203,8 @@ function renderGame(s){
     $('hNext').textContent='Start Next Round';$('hNext').disabled=s.players.length<2;
   }else if(s.phase==='result'&&H.nextAt){
     $('hNext').disabled=true;
-    const f=()=>{$('hNext').textContent=`Next round in ${nextCount(H.nextAt)}…`};
+    const f=()=>{const st=H.state,stealing=st&&st.players.some(p=>p.canSteal)&&H.stealAt;
+      $('hNext').textContent=stealing?`Waiting for a steal… ${Math.max(0,Math.ceil((H.stealAt-performance.now())/1000))}`:`Next round in ${nextCount(H.nextAt)}…`};
     f();H.nextTick=setInterval(f,200);
   }else{
     $('hNext').textContent=s.phase==='final'?'New Match':'Next Round';
@@ -252,7 +263,7 @@ function bonkBits(id){
   const b=H.bonks.get(id);if(!b)return{cls:'',style:'',pop:''};
   const ago=performance.now()-b.t;if(ago>BONK_MS)return{cls:'',style:'',pop:''};
   const d=`animation-delay:-${Math.round(ago)}ms`;
-  return{cls:' bonked',style:` style="${d}"`,pop:`<span class="bonk-pop" style="${d}" aria-hidden="true">BONK!</span>`,
+  return{cls:' bonked',style:` style="${d}"`,pop:`<span class="bonk-pop" style="${d}" aria-hidden="true">${b.label||'BONK!'}</span>`,
     tag:`<span class="tag minus">${b.life?'−❤️':'−'+b.taken}</span>`};
 }
 
@@ -264,7 +275,7 @@ function renderScores(s,rows){
   const pct=v=>max>0?(v/max)*100:0;
   const box=$('hScores');
   // Redraw only when something shown on the scoreboard has changed
-  const sig=s.phase+'|'+(H.armed?H.armed.id:'')+'|'+[...H.bonks.keys()].join()+'|'+rows.map(p=>[p.id,p.name,p.emoji,emojiMood(s,p.id),p.points,p.lives,p.out,p.outRound,p.gained,p.lostLife,p.bonks,p.wins].join(',')).join(';');
+  const sig=s.phase+'|'+(H.armed?H.armed.id:'')+'|'+[...H.bonks.keys()].join()+'|'+rows.map(p=>[p.id,p.name,p.emoji,emojiMood(s,p.id),p.points,p.lives,p.out,p.outRound,p.gained,p.lostLife,p.bonks,p.wins,p.streak,p.canSteal].join(',')).join(';');
   if(box.dataset.sig===sig)return;
   box.dataset.sig=sig;
   box.classList.toggle('compact',rows.length>(s.phase==='final'?12:10));
@@ -275,7 +286,7 @@ function renderScores(s,rows){
     const from=H.prevPct.has(p.id)?H.prevPct.get(p.id):pct(val(p));
     const bk=bonkBits(p.id);
     const tag=bk.tag||(elim?(p.lostLife&&(s.phase==='result'||s.phase==='final')?'<span class="tag minus">−❤️</span>':''):(p.gained?`<span class="tag ready">+${p.gained}</span>`:''));
-    const note=(elim&&p.out?`Out in round ${p.outRound} · `:'')+`${p.wins} race${p.wins===1?'':'s'} won`+(p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:'');
+    const note=(elim&&p.out?`Out in round ${p.outRound} · `:'')+`${p.wins} race${p.wins===1?'':'s'} won`+(p.streak>=2?` · 🔥 ${p.streak} in a row`:'')+(p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:'');
     return `<div class="sb-row${i===0&&max>0&&!rows.slice(1).some(same)&&!(elim&&p.out)?' lead':''}${elim&&p.out?' out':''}${bk.cls}" data-id="${esc(p.id)}">`+
       `<span class="sb-rank">${level?'':tied?rank+'=':rank}</span>`+
       `<span class="sb-name"${bk.style}><span class="sb-line">${emojiTag(s,p)}<b>${esc(p.name)}</b></span><small>${note}</small></span>`+
@@ -343,6 +354,8 @@ function renderPodium(s,rows){
   // Classic order: 2nd on the left, 1st in the middle, 3rd on the right
   box.innerHTML=step(top[1],2)+step(top[0],1)+step(top[2],3);
 }
+
+$('hTermSlot').innerHTML=termHTML('hTermBody','C:\\MAKE24\\RACES.EXE');
 
 /* ---------- Controls ---------- */
 $('hStart').onclick=()=>socket.emit('start');
