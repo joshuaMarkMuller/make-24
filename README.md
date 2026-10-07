@@ -2,7 +2,7 @@
 
 A classroom maths game. Students get four numbers from 1 to 9 and combine them with +, −, × and ÷ to make exactly 24.
 
-The project grows in stages, from a single game projected on the board (Stage 1) to an online race for a whole class, with lobby codes (Stage 6). See [docs/ROADMAP.md](docs/ROADMAP.md).
+The project grows in stages, from a single game projected on the board (Stage 1) to an online race for a whole class, with lobby codes (Stage 6).
 
 ## How to play
 
@@ -83,8 +83,6 @@ make-24/
 ├── server/
 │   ├── index.js         Web server and lobby manager: creates lobby codes, lets players join by code
 │   └── room.js          One lobby's game: draws groups, deals puzzles, checks answers, runs matches and keeps score
-├── docs/
-│   └── ROADMAP.md       Stages and success criteria
 ├── package.json
 ├── render.yaml          Settings for hosting on Render
 ├── LICENSE

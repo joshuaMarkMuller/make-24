@@ -6,3 +6,7 @@ Thumbs.db
 
 # Preview images saved by the Claude app (not part of the project)
 Claude outputs/
+
+# Project roadmap (kept locally, not published)
+/ROADMAP.md
+docs/ROADMAP.md
