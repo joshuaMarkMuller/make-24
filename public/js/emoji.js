@@ -32,6 +32,9 @@ if (typeof window !== 'undefined') {
   window.samePlace = (s, a, b) => !!a && !!b && (isElim(s)
     ? a.out === b.out && a.lives === b.lives && a.outRound === b.outRound
     : a.points === b.points && a.wins === b.wins);
+  // Everyone level (e.g. nobody has scored yet, or everyone still has all their lives):
+  // ranks would all read "1=", so the screens leave them out
+  window.allTied = s => { const r = s.players; return r.length < 2 || r.every(p => samePlace(s, p, r[0])); };
   // Hearts for elimination mode: ❤️ for each life left, 🤍 for each life lost
   window.hearts = (s, p) => '❤️'.repeat(p.lives) + '🤍'.repeat(Math.max(0, (s.maxLives || 3) - p.lives));
   // Did this player win or lose? Round results: winning your race = win, anyone else in a race = lose.

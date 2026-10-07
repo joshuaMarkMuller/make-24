@@ -106,7 +106,8 @@ body{background:#3a6ea5;font-family:var(--ui);font-size:13px;color:#000;user-sel
 
 /* The win cascade plays behind everything else on the table: cards, buttons, messages and panels stay on top */
 #cascade{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none;z-index:0}
-.felt>:not(#cascade){position:relative;z-index:1}
+.felt>:not(#cascade):not(#heartLoss){position:relative;z-index:1}
+#heartLoss{position:absolute;z-index:3}
 #cascade.on{display:block}
 
 /* ---------- Status bar ---------- */
@@ -407,6 +408,10 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 .bonk-btn:hover{background:linear-gradient(180deg,#ff8070,#d83a26)}
 .bonk-btn:active{transform:translateY(1px)}
 .bonk-btn:focus-visible{outline:2px solid #f8b636;outline-offset:1px}
+/* First press: "Sure?" stays visible and pulses until pressed again (or 3 seconds pass) */
+.bonk-btn.armed{opacity:1;background:linear-gradient(180deg,#ffd23a,#e09a00);color:#3a1f00;border-color:#8a5a00;animation:armPulse .7s ease-in-out infinite alternate}
+@keyframes armPulse{to{box-shadow:0 0 0 4px rgba(255,190,40,.45)}}
+@media (prefers-reduced-motion:reduce){.bonk-btn.armed{animation:none}}
 #hScores .sb-row{grid-template-columns:28px minmax(90px,170px) minmax(0,1fr) 190px}
 .host-game.final #hScores .sb-row{grid-template-columns:44px minmax(140px,260px) minmax(0,1fr) 220px}
 /* Player's own message when bonked */
@@ -541,3 +546,49 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 .sb-row.out .sb-fill{background:#999}
 .racer-row.out-elim{opacity:.45}
 .knocked{color:#d40000}
+
+/* Elimination: your hearts show in the middle of the screen when you lose your race; the lost one turns white */
+.heart-loss{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.heart-loss[hidden]{display:none}
+.hl-left{display:flex;gap:clamp(8px,2vw,20px);font-size:clamp(56px,11vw,110px);line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45))}
+.hl-left>span{display:inline-grid}
+.hl-losing>span{grid-area:1/1}
+.heart-loss.play .hl-left{animation:hl-in 2.2s ease forwards}
+.heart-loss.play{animation:hl-dim 2.2s ease forwards}
+@keyframes hl-dim{0%{background:rgba(0,30,0,0)}15%,80%{background:rgba(0,30,0,.45)}100%{background:rgba(0,30,0,0)}}
+.heart-loss.play .hl-red{animation:hl-red 2.2s ease forwards}
+.heart-loss.play .hl-white{opacity:0;animation:hl-white 2.2s ease forwards}
+@keyframes hl-in{0%{opacity:0;transform:scale(.6)}15%{opacity:1;transform:scale(1.05)}22%,80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.95)}}
+@keyframes hl-red{0%,35%{opacity:1;transform:scale(1)}45%{transform:scale(1.25)}55%,100%{opacity:0;transform:scale(.6)}}
+@keyframes hl-white{0%,45%{opacity:0;transform:scale(.6)}60%{opacity:1;transform:scale(1.1)}70%,100%{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.heart-loss.play *{animation:none!important}.heart-loss.play .hl-red{opacity:0}.heart-loss.play .hl-white{opacity:1}}
+
+/* Elimination scoreboards: big hearts instead of progress bars */
+.sb-hearts{font-size:22px;letter-spacing:3px;line-height:1;white-space:nowrap;min-width:0;overflow:hidden}
+#hScores .sb-hearts{font-size:26px}
+#scoreRows.compact .sb-hearts,#hScores.compact .sb-hearts{font-size:18px}
+.sb-row.out .sb-hearts{filter:grayscale(1)}
+@media (max-width:520px){.sb-hearts{grid-column:2/4;grid-row:2;font-size:18px}}
+
+/* ---------- Connection dropped: shown while the player screen rejoins by itself ---------- */
+.net-banner{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:60;max-width:calc(100% - 32px);
+  padding:8px 16px;border-radius:6px;background:#fff6c8;color:#222;border:1px solid #b08a00;
+  font:bold 15px var(--ui);box-shadow:0 4px 14px rgba(0,0,0,.35);text-align:center}
+.net-banner::before{content:'';display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:50%;
+  border:2px solid #b08a00;border-top-color:transparent;vertical-align:-1px;animation:netSpin .8s linear infinite}
+@keyframes netSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.net-banner::before{animation:none}}
+
+/* Join screen: link for teachers to the host screen */
+.host-link{margin-top:10px;font-size:13px;color:#444}
+.host-link a{color:#0645ad;font-weight:bold}
+/* Host: Pause button shows when the game is paused */
+#hPause.on{background:linear-gradient(180deg,#ffe58a,#f2c230);border-color:#8a6a00}
+/* Player help: short sections */
+.help-body h3{font-size:15px;margin:12px 0 4px}
+.help-body h3:first-child{margin-top:0}
+.help-body ol{margin:4px 0;padding-left:22px}
+.help-body p,.help-body li{margin:4px 0}
+.help-body kbd{font:12px var(--ui);border:1px solid #999;border-radius:3px;padding:0 4px;background:#f4f4f4}
+#helpDlg .dialog{max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);display:flex;flex-direction:column}
+#helpDlg .dialog-body{overflow-y:auto;min-height:0}

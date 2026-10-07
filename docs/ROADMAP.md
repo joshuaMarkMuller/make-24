@@ -8,7 +8,8 @@
 | 4 | Whole class (up to 24) | Complete |
 | 5 | Sound effects and visuals | Complete |
 | 6 | Online with lobby codes | In progress |
-| 7 | Real-world testing | Not started |
+| 7 | Suggested improvements | Complete |
+| 8 | Real-world testing | Not started |
 
 ## Stage 1: Projector game
 - [x] HTML application that works in my browser
@@ -43,9 +44,38 @@
 - [ ] I have tested whether multiple games can be hosted at the same time, and whether any issues arise from that
 - [ ] I have tested whether the game is blocked on my school's Wi-Fi
 
-## Stage 7: Real-world testing
+## Stage 7: Suggested improvements
+- [x] A player whose connection drops rejoins automatically, keeping their seat, score and lives
+- [x] Bonk needs a second press to confirm, so a slip can't penalise anyone
+- [x] The host can pause after the current round and resume when ready
+- [x] The player help screen is up to date (lobby code, emoji, both game modes and giving up)
+- [x] The home page has a "Host a game" link
+- [x] Ranks are hidden until someone scores, so nobody shows as "1=" at the start
+- [x] Card taps send small updates, at most 10 a second, instead of the whole game
+- [x] Screens only redraw the parts that changed
+- [x] Speed points are timed on the player's device, so a slow connection doesn't cost points
+- [x] Elimination: the group of three rotates so the same players aren't stuck in it
+- [x] Knocked-out players can keep solving the same puzzles for fun
+- [x] The game has been tested with every change implemented
+
+## Stage 8: Real-world testing
 - [ ] I have tested the game with friends or colleagues
 - [ ] I have tested the game with a full class
+- [ ] Students can join on the devices they'll actually use (school laptops or Chromebooks, iPhones, Android phones and iPads), and the join screen and cards fit on each
+- [ ] The host screen is readable from the back of the room on the projector, including the lobby code, scoreboard and hearts
+- [ ] A full class can join within 2 minutes using only the code on the projector
+- [ ] A full match runs on the school Wi-Fi with no lag between tapping a card and the opponent's face-down cards moving
+- [ ] A student whose phone locks or loses Wi-Fi can rejoin with the same name and carries on with their score or lives
+- [ ] The host screen survives a refresh mid-match and takes back the same lobby
+- [ ] Two classes can play at the same time on the live site without problems
+- [ ] A full Points match and a full Elimination match both run from start to podium without needing a refresh
+- [ ] Sounds play on student devices, and the Sound off setting works
+- [ ] Students understand how to play without the teacher explaining it more than once
+- [ ] The 30-second time limit feels fair for most of the class, with most pairs finishing in time
+- [ ] Renaming, Bonk and End Game all work during a real lesson
+- [ ] The lobby closing stops another class from joining with a shared code
+- [ ] Students can't find a way to cheat (for example, two devices under one name, or refreshing to dodge a lost life)
+- [ ] Quick feedback is collected from students (fun, too hard or too easy, anything confusing) and any bugs are noted to fix
 
 ## Claude usage (energy and water)
 
@@ -53,21 +83,21 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Prompts** | **94** | | messages you've sent Claude so far |
-| **Energy** | **≈ 17.2 kWh** | 7.1–33.3 kWh | about 172 boils of a full electric kettle (71–333 boils) |
-| **Water** | **≈ 70 litres** | 7–137 litres | about one short shower |
-| **Cost** | **≈ A$5.12** | A$2.02–9.94 | energy ≈ A$4.84 plus water ≈ A$0.27, at Victorian household prices |
-| **Cost per prompt** | **≈ 5.4c** | 2.1–10.6c | average: total cost ÷ number of prompts |
+| **Prompts** | **112** | | messages you've sent Claude so far |
+| **Energy** | **≈ 21.4 kWh** | 8.8–41.5 kWh | about 214 boils of a full electric kettle (88–415 boils) |
+| **Water** | **≈ 88 litres** | 9–170 litres | about one short shower |
+| **Cost** | **≈ A$6.38** | A$2.52–12.38 | energy ≈ A$6.04 plus water ≈ A$0.34, at Victorian household prices |
+| **Cost per prompt** | **≈ 5.7c** | 2.2–11.1c | average: total cost ÷ number of prompts |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
 | Activity | Share | Energy |
 |---|---|---|
-| Reading and writing project files | 28% | ≈ 4.8 kWh |
-| Running code and tests | 32% | ≈ 5.5 kWh |
-| Claude's built-in instructions (re-read every step) | 21% | ≈ 3.6 kWh |
-| Conversation and replies | 12% | ≈ 2.1 kWh |
-| Syncing files to the computer | 7% | ≈ 1.2 kWh |
+| Reading and writing project files | 27% | ≈ 5.8 kWh |
+| Running code and tests | 33% | ≈ 7.1 kWh |
+| Claude's built-in instructions (re-read every step) | 21% | ≈ 4.5 kWh |
+| Conversation and replies | 12% | ≈ 2.6 kWh |
+| Syncing files to the computer | 7% | ≈ 1.5 kWh |
 
 **How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
 
@@ -87,6 +117,21 @@ Hausfather, Z. (2026, August 12). The real energy use of agentic AI. *The Climat
 Li, P., Yang, J., Islam, M. A., & Ren, S. (2023). *Making AI less "thirsty": Uncovering and addressing the secret water footprint of AI models* (arXiv:2304.03271). arXiv. https://doi.org/10.48550/arXiv.2304.03271
 
 ## Change log
+- **2026-10-07** Stage 7 complete. Suggested improvements 13–17 built and all of Stage 7 passed the class test together (2 classes × 24 players × 10 rounds, plus an odd-numbered class and an Elimination class): 55 checks passed, none failed.
+- **2026-10-07** Built: card taps now send a small update (at most 10 a second per player) only to that player's opponents and the host, instead of the whole game to the whole class. The host's scoreboard, races and waiting-room list, and the players' waiting-room list, only redraw when something on them changes. Speed points are timed on the player's device (the server accepts it if it's up to 3 seconds less than its own time, otherwise uses its own). The group of three is shared around so the same players aren't stuck in it. In Elimination, players who are out keep getting the same cards to practise on, and it doesn't count.
+- **2026-10-07** Class test extended: floods card taps, checks wasted updates and redraws, times a delayed answer and an impossible one, and adds an odd-numbered class (group of three shared around: each player 4 or 5 times in 10 rounds) and an Elimination class (practice when out). Choosing a waiting-room setting that's already selected no longer re-sends the whole game.
+- **2026-10-07** Stage 7: auto-rejoin, two-press Bonk, Pause/Resume, the new player help, the Host a game link and hidden ranks all passed the class test (2 classes × 24 players × 10 rounds) and are ticked off. 6 of 12 criteria done.
+- **2026-10-07** Fixed (found by the class test): pressing Escape didn't close Help when it was open on top of the round results, which left that player's keyboard stuck for the rest of the match.
+- **2026-10-07** Class test added (`npm run test:class`, in `tests/`): plays two classes of 24 at the same time for 10 rounds and checks every round's groups, points and scores, plus dropped connections, page reloads, a second tab, outsiders trying to join, Pause/Resume, two-press Bonk, the player help, the Host a game link and hidden ranks. It ends with a pass/fail report. First full run: 43 checks passed, none failed; the server used about 1% CPU and 85 MB.
+- **2026-10-07** Built: the host can pause after the current round (Pause After This Round, or Pause on the results) and press Resume or Start Next Round; players and the projector show that it's paused. The player help screen is rewritten (joining with the code and emoji, each round, both game modes, giving up, keyboard). The home page has a "Host a game" link. Ranks are hidden while everyone is level, so nobody shows as "1=" at the start. All ready to test.
+- **2026-10-07** Claude usage updated (112 prompts). Prompts 102–104 were condensed out of the conversation record, so they're counted at the average cost per prompt.
+- **2026-10-07** Built: a player whose connection drops (or who reloads the page) now rejoins automatically and keeps their seat, score and lives, using a private token saved on their device. A second tab on the same device takes over the seat. Bonk on the host screen now needs a second press ("Sure?") within 3 seconds. Both ready to test.
+- **2026-10-07** Added Stage 7: Suggested improvements, with 11 changes from the design review and a final criterion that the game has been tested with every change implemented. Real-world testing is now Stage 8.
+- **2026-10-07** Roadmap page: on the cost of each prompt chart, the dashed average line now runs across the whole chart and shows the average of every prompt so far (the same figure as the cost per prompt).
+- **2026-10-07** Stage 7 (Real-world testing): 15 more criteria added covering devices and setup, network and reliability, gameplay, classroom management and student feedback.
+- **2026-10-07** Elimination: the breaking-heart animation is replaced by the player's hearts shown in the middle of the screen, with the life they just lost turning white. The animation no longer includes any text.
+- **2026-10-07** Elimination: as soon as someone in a pair or group makes 24, the race stops for everyone else in it and a heart breaks in the middle of their screen ("You lose a life!" or "You're out!" with the hearts they have left). The results wait for the animation to finish. Elimination scoreboards on the host and player screens now show just hearts, without progress bars.
+- **2026-10-07** Elimination mode: the host can now choose 3, 4 or 5 lives (a Lives setting that appears when Elimination is selected).
 - **2026-10-07** Roadmap page: the Claude usage section now has a line chart of the cost of each prompt (prompt number along the bottom, cost in cents up the side). The first 51 prompts only have a recorded total, so they show as their average.
 - **2026-10-07** New Elimination game mode, chosen by the host in the waiting room. Everyone starts with 3 lives and is still paired each round (one group of three for odd numbers). The first in each group to make 24 keeps their lives and everyone else in the group loses one; if nobody in a group makes 24, they all lose one. Players on 0 lives are out and watch. Last player standing wins. Scoreboards and the podium show hearts, Bonk takes a life, and if a round would knock out every remaining player at once they all stay in on one life. Tested with a simulated 5-player game.
 - **2026-10-07** Claude usage: APA 7 references added for the energy, water and price figures (Hausfather, 2026; Li et al., 2023; Essential Services Commission, 2026; Greater Western Water, 2026). On the roadmap page, the dot point about Anthropic not publishing figures was removed.

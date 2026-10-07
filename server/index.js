@@ -83,14 +83,14 @@ io.on('connection', socket => {
   });
 
   // Player: join a lobby by its code
-  socket.on('join', ({ code, name, emoji } = {}, reply) => {
+  socket.on('join', ({ code, name, emoji, token } = {}, reply) => {
     if (typeof reply !== 'function') return;
     if (inLobby()) return reply({ ok: false, error: 'You are already in a lobby.' });
     const c = cleanCode(code);
     if (c.length !== CODE_LEN) return reply({ ok: false, error: `Lobby codes have ${CODE_LEN} letters and numbers.` });
     const room = rooms.get(c);
     if (!room) return reply({ ok: false, error: `No lobby with the code ${c}. Check the code on the host's screen.` });
-    reply(room.addPlayer(socket, name, emoji));
+    reply(room.addPlayer(socket, name, emoji, token));
   });
 });
 

@@ -53,6 +53,12 @@ socket.on('state',s=>{
   H.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;
   render();
 });
+// One player's board changed (a small update, not the whole game): only the races panel needs redrawing
+socket.on('progress',d=>{
+  const s=H.state,p=s&&s.players.find(q=>q.id===d.id);if(!p||s.phase!=='playing')return;
+  Object.assign(p,{layout:d.layout,sel:d.sel,lastMove:d.lastMove,moveSeq:d.moveSeq});
+  renderRaces(s,null);
+});
 socket.on('round',r=>{H.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);H.deadline=performance.now()+r.countdownMs+r.limitMs});
 
 // Seconds left on the between-rounds countdown (never shows more than 3)
@@ -78,16 +84,16 @@ function joinAddresses(s){
 
 function renderLobby(s){
   showView('hostLobby');clearInterval(H.tick);
-  $('hStatus').textContent=`Waiting room · ${isElim(s)?'Elimination, 3 lives':`${s.matchRounds}-round match`} · ${s.cardCount} cards`;
+  $('hStatus').textContent=`Waiting room · ${isElim(s)?`Elimination, ${s.maxLives} lives`:`${s.matchRounds}-round match`} · ${s.cardCount} cards`;
   $('lobbyCode').textContent=s.code;
   $('joinUrl').innerHTML=joinAddresses(s).map(u=>`<span>${esc(u)}</span>`).join('');
   $('hCount').textContent=s.players.length?`${s.players.length} of ${s.maxPlayers} players have joined`:'No players yet';
   $('hPreview').textContent=describeGroups(s.players.length);
   renderPlayerList(s);
   $('hRounds').value=String(s.matchRounds);
-  $('hMode').value=s.mode;$('hRoundsRow').hidden=isElim(s);
+  $('hMode').value=s.mode;$('hRoundsRow').hidden=isElim(s);$('hLivesRow').hidden=!isElim(s);$('hLives').value=String(s.maxLives);
   $('hModeNote').textContent=isElim(s)
-    ?'Everyone starts with 3 lives. Lose your race (or nobody in your group makes 24) and you lose a life. Last player standing wins.'
+    ?`Everyone starts with ${s.maxLives} lives.`+' Lose your race (or nobody in your group makes 24) and you lose a life. Last player standing wins.'
     :'Every card must be used to make 24.';
   $('hCardCount').value=String(s.cardCount);
   $('hStart').disabled=s.players.length<2;
@@ -108,6 +114,10 @@ function renderPlayerList(s){
       return;
     }
   }
+  // Redraw only when someone joins, leaves, is renamed or changes emoji
+  const sig=(H.editing||'')+'|'+s.players.map(p=>p.id+p.name+p.emoji).join('|');
+  if(!H.editing&&list.dataset.sig===sig)return;
+  list.dataset.sig=sig;
   const typed=list.querySelector('form.rename input')?.value;
   list.innerHTML=s.players.map(p=>p.id===H.editing
     ?`<li data-id="${esc(p.id)}" class="editing"><form class="rename"><input type="text" maxlength="16" value="${esc(p.name)}" aria-label="New name for ${esc(p.name)}">`+
@@ -135,7 +145,8 @@ function renderGame(s){
   $('hostGame').classList.toggle('final',s.phase==='final');   // final results layout: big scoreboard + podium
   const res=s.phase==='result'||s.phase==='final'?s.result:null;
   $('hRound').textContent=isElim(s)?`Round ${s.matchRound} · ${s.players.filter(p=>!p.out).length} left`:`Round ${s.matchRound} of ${s.matchRounds}`;
-  $('hStatus').textContent=s.phase==='countdown'?'Get ready…':s.phase==='playing'?'Racing':s.phase==='final'?'Match over':'Round over';
+  $('hStatus').textContent=(s.phase==='countdown'?'Get ready…':s.phase==='playing'?'Racing':s.phase==='final'?'Match over':'Round over')+
+    (s.hold&&s.phase!=='final'?(s.phase==='result'?' · Paused':' · Pausing after this round'):'');
 
   // The four cards everyone is racing (dealt in once per round)
   if(s.nums&&H.dealt!==s.round){
@@ -167,7 +178,7 @@ function renderGame(s){
   }else{
     const f=res&&res.fastest,n=res?res.solvedCount:0;
     const out=isElim(s)&&res&&res.knockedOut&&res.knockedOut.length?`  ·  Out: ${listNames(res.knockedOut)}`:'';
-    $('hBanner').textContent=(f?`${n} of ${s.players.length} made 24 · Fastest: ${f.name} in ${f.time.toFixed(1)} s`:'Nobody made 24 this round')+out+(res&&res.solution?`  ·  One answer: ${res.solution} = 24`:'');
+    $('hBanner').textContent=(f?`${n} of ${s.players.length} made 24 · Fastest: ${f.name} in ${f.time.toFixed(1)} s`:'Nobody made 24 this round')+out+(res&&res.solution?`  ·  One answer: ${res.solution} = 24`:'')+(s.hold?'  ·  Paused':'');
   }
 
   renderRaces(s,res);
@@ -178,7 +189,9 @@ function renderGame(s){
   // Between rounds the next round starts by itself after a 3-second countdown (shown on the button)
   $('hNext').hidden=!(s.phase==='result'||s.phase==='final');
   clearInterval(H.nextTick);
-  if(s.phase==='result'&&H.nextAt){
+  if(s.phase==='result'&&s.hold){
+    $('hNext').textContent='Start Next Round';$('hNext').disabled=s.players.length<2;
+  }else if(s.phase==='result'&&H.nextAt){
     $('hNext').disabled=true;
     const f=()=>{$('hNext').textContent=`Next round in ${nextCount(H.nextAt)}…`};
     f();H.nextTick=setInterval(f,200);
@@ -192,6 +205,11 @@ function renderGame(s){
   else if(acts.parentElement===slot)$('hPodium').after(acts);
   $('hLobby').hidden=s.phase!=='final';
   $('hEnd').hidden=s.phase==='final';
+  // Pause: during a round it takes effect once the round ends; on the results it stops the countdown
+  $('hPause').hidden=s.phase==='final';
+  $('hPause').textContent=s.hold?'Resume':s.phase==='result'?'Pause':'Pause After This Round';
+  $('hPause').classList.toggle('on',!!s.hold);
+  $('hPause').setAttribute('aria-pressed',!!s.hold);
   if(s.phase==='final')hide('endDlg');
 }
 
@@ -199,6 +217,11 @@ function renderGame(s){
 // if they made 24, or their cards left while still racing.
 function renderRaces(s,res){
   const nameOf=id=>{const p=s.players.find(q=>q.id===id);return p?p.name:'(left)'};
+  // Redraw only when something shown here has changed
+  const sig=s.phase+'|'+(res?'r':'')+'|'+JSON.stringify(res?res.groups.map(g=>[g.members,g.winnerId,g.solvers.map(x=>x.id+x.points)]):s.groups.map(g=>[g.members,g.winnerId,g.done]))+'|'+
+    s.players.map(p=>[p.id,p.name,p.emoji,emojiMood(s,p.id),p.solved,p.gained,p.gaveUp,p.beaten,p.out,p.lostLife,(p.layout||[]).map(Number).join('')].join(',')).join(';');
+  if($('hRaces').dataset.sig===sig)return;
+  $('hRaces').dataset.sig=sig;
   const groups=res?res.groups.map(g=>({members:g.members,winnerId:g.winnerId,solvers:g.solvers,done:true}))
                   :s.groups.map(g=>({...g,solvers:null}));
   $('hRaces').innerHTML=groups.map(g=>{
@@ -211,6 +234,7 @@ function renderRaces(s,res){
       if(sv)detail=`${sv.time.toFixed(1)} s · +${sv.points}`;
       else if(p&&p.solved)detail=`+${p.gained}`;
       else if(p&&p.gaveUp)detail='gave up';
+      else if(p&&p.beaten&&!res)detail='beaten';
       else if(res)detail='—';
       else{const n=p&&p.layout?p.layout.length:s.cardCount,left=p&&p.layout?p.layout.filter(Boolean).length:n;detail=`<span class="pips">${'●'.repeat(left)}${'○'.repeat(n-left)}</span>`}
       if(isElim(s)&&res&&p){if(p.out&&p.outRound===s.matchRound)detail+=' · <b class="knocked">OUT</b>';else if(p.lostLife)detail+=' · −❤️'}
@@ -238,7 +262,13 @@ function renderScores(s,rows){
   const max=elim?(s.maxLives||3):Math.max(0,...rows.map(p=>p.points));
   const val=p=>elim?p.lives:p.points;
   const pct=v=>max>0?(v/max)*100:0;
-  const box=$('hScores');box.classList.toggle('compact',rows.length>(s.phase==='final'?12:10));
+  const box=$('hScores');
+  // Redraw only when something shown on the scoreboard has changed
+  const sig=s.phase+'|'+(H.armed?H.armed.id:'')+'|'+[...H.bonks.keys()].join()+'|'+rows.map(p=>[p.id,p.name,p.emoji,emojiMood(s,p.id),p.points,p.lives,p.out,p.outRound,p.gained,p.lostLife,p.bonks,p.wins].join(',')).join(';');
+  if(box.dataset.sig===sig)return;
+  box.dataset.sig=sig;
+  box.classList.toggle('compact',rows.length>(s.phase==='final'?12:10));
+  const level=allTied(s);   // everyone level: no ranks (they'd all say "1=")
   box.innerHTML=rows.map((p,i)=>{
     const same=q=>samePlace(s,q,p);
     const rank=rows.findIndex(same)+1,tied=rows.filter(same).length>1;
@@ -247,11 +277,14 @@ function renderScores(s,rows){
     const tag=bk.tag||(elim?(p.lostLife&&(s.phase==='result'||s.phase==='final')?'<span class="tag minus">−❤️</span>':''):(p.gained?`<span class="tag ready">+${p.gained}</span>`:''));
     const note=(elim&&p.out?`Out in round ${p.outRound} · `:'')+`${p.wins} race${p.wins===1?'':'s'} won`+(p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:'');
     return `<div class="sb-row${i===0&&max>0&&!rows.slice(1).some(same)&&!(elim&&p.out)?' lead':''}${elim&&p.out?' out':''}${bk.cls}" data-id="${esc(p.id)}">`+
-      `<span class="sb-rank">${tied?rank+'=':rank}</span>`+
+      `<span class="sb-rank">${level?'':tied?rank+'=':rank}</span>`+
       `<span class="sb-name"${bk.style}><span class="sb-line">${emojiTag(s,p)}<b>${esc(p.name)}</b></span><small>${note}</small></span>`+
-      `<span class="sb-track"${bk.style}><span class="sb-fill" data-id="${esc(p.id)}" data-to="${pct(val(p))}" style="width:${from}%"></span></span>`+
-      `<span class="sb-pts">${elim?`<span class="hearts" aria-label="${p.lives} lives">${hearts(s,p)}</span>`:p.points.toLocaleString()}${tag}`+
-      `<button class="bonk-btn" data-id="${esc(p.id)}" title="Bonk ${esc(p.name)}: take ${elim?'a life':'500 points'}" aria-label="Bonk ${esc(p.name)}"${elim&&p.out?' disabled':''}>Bonk</button></span>`+
+      (elim?`<span class="sb-hearts"${bk.style} aria-label="${p.lives} lives">${hearts(s,p)}</span>`
+        :`<span class="sb-track"${bk.style}><span class="sb-fill" data-id="${esc(p.id)}" data-to="${pct(val(p))}" style="width:${from}%"></span></span>`)+
+      `<span class="sb-pts">${elim?'':p.points.toLocaleString()}${tag}`+
+      (H.armed&&H.armed.id===p.id
+        ?`<button class="bonk-btn armed" data-id="${esc(p.id)}" title="Press again to take ${elim?'a life':'500 points'} from ${esc(p.name)}" aria-label="Confirm: bonk ${esc(p.name)}">Sure?</button></span>`
+        :`<button class="bonk-btn" data-id="${esc(p.id)}" title="Bonk ${esc(p.name)}: take ${elim?'a life':'500 points'}" aria-label="Bonk ${esc(p.name)}"${elim&&p.out?' disabled':''}>Bonk</button></span>`)+
       bk.pop+`</div>`;
   }).join('');
   // Grow (or shrink) the bars that changed
@@ -259,15 +292,34 @@ function renderScores(s,rows){
     box.querySelectorAll('.sb-fill').forEach(f=>{f.style.width=f.dataset.to+'%';H.prevPct.set(f.dataset.id,+f.dataset.to)});
   }));
 }
-// Bonk buttons: pointerdown (not click) so a redraw between press and release can't swallow it
+// Bonk takes two presses so a slip of the mouse can't penalise anyone: the first turns the
+// button into "Sure?" for 3 seconds, the second does the bonk.
+// pointerdown (not click) so a redraw between press and release can't swallow it.
+const ARM_MS=3000;
+H.armed=null;   // {id} of the player whose Bonk button is waiting for the second press
+function disarm(){clearTimeout(H.armTimer);if(H.armed){H.armed=null;render()}}
+function pressBonk(id){
+  if(H.armed&&H.armed.id===id){
+    clearTimeout(H.armTimer);H.armed=null;
+    socket.emit('bonk',id,res=>{if(res&&!res.ok){H.notice=res.error;H.noticeAt=Date.now()}render()});
+  }else{
+    clearTimeout(H.armTimer);H.armed={id};
+    H.armTimer=setTimeout(disarm,ARM_MS);
+  }
+  render();
+  const again=$('hScores').querySelector(`.bonk-btn[data-id="${CSS.escape(id)}"]`);if(again)again.focus({preventScroll:true});
+}
 $('hScores').addEventListener('pointerdown',e=>{
-  const b=e.target.closest('.bonk-btn');if(!b)return;
-  e.preventDefault();
-  socket.emit('bonk',b.dataset.id,res=>{if(res&&!res.ok){H.notice=res.error;H.noticeAt=Date.now()}});
+  const b=e.target.closest('.bonk-btn');if(!b||b.disabled)return;
+  e.preventDefault();pressBonk(b.dataset.id);
 });
 $('hScores').addEventListener('keydown',e=>{
-  const b=e.target.closest('.bonk-btn');if(b&&(e.key==='Enter'||e.key===' ')){e.preventDefault();socket.emit('bonk',b.dataset.id)}
+  const b=e.target.closest('.bonk-btn');
+  if(b&&(e.key==='Enter'||e.key===' ')){e.preventDefault();pressBonk(b.dataset.id)}
+  else if(e.key==='Escape')disarm();
 });
+// Pressing anywhere else cancels a waiting "Sure?"
+document.addEventListener('pointerdown',e=>{if(H.armed&&!e.target.closest('.bonk-btn'))disarm()});
 
 // Final results: a three-step podium (2nd · 1st · 3rd). Tied players share a place.
 let podiumShownFor=0;
@@ -295,6 +347,7 @@ function renderPodium(s,rows){
 /* ---------- Controls ---------- */
 $('hStart').onclick=()=>socket.emit('start');
 $('hNext').onclick=()=>{H.prevPct.clear();socket.emit('start')};      // next round, or a new match after the final
+$('hPause').onclick=()=>socket.emit('hold',!(H.state&&H.state.hold));
 $('hLobby').onclick=()=>{H.prevPct.clear();socket.emit('toLobby')};
 $('hEnd').onclick=()=>{
   const s=H.state,live=s&&(s.phase==='playing'||s.phase==='countdown');
@@ -307,6 +360,7 @@ $('hEnd').onclick=()=>{
 $('endYes').onclick=()=>{hide('endDlg');socket.emit('endMatch')};
 $('hRounds').onchange=()=>socket.emit('setRounds',+$('hRounds').value);
 $('hMode').onchange=()=>socket.emit('setMode',$('hMode').value);
+$('hLives').onchange=()=>socket.emit('setLives',+$('hLives').value);
 $('hCardCount').onchange=()=>socket.emit('setCards',+$('hCardCount').value);
 
 /* ---------- Menus, help, keys ---------- */

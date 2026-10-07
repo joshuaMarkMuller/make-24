@@ -54,39 +54,81 @@ $('emojiGrid').onkeydown=e=>{e.stopPropagation();if(e.key==='Escape'){openGrid(f
 document.addEventListener('click',()=>{if(!$('emojiGrid').hidden)openGrid(false)});
 {let saved=null;try{saved=sessionStorage.getItem('make24-emoji')}catch{}setEmoji(EMOJIS.some(x=>x[0]===saved)?saved:randomEmoji())}
 $('codeInput').oninput=()=>{const c=cleanCode($('codeInput').value);if($('codeInput').value!==c)$('codeInput').value=c};
+// A private token for this device (never shown). If the connection drops, or the page is
+// reloaded, the server uses it to give the player their own seat back, with their score or lives.
+const TOKEN=(()=>{let t='';try{t=localStorage.getItem('make24-device')||''}catch{}
+  if(!/^[a-z0-9]{16,}$/.test(t)){t=[...crypto.getRandomValues(new Uint8Array(12))].map(b=>b.toString(36).padStart(2,'0')).join('');try{localStorage.setItem('make24-device',t)}catch{}}
+  return t})();
+function join(code,name,emoji,auto){
+  socket.emit('join',{code,name,emoji,token:TOKEN},res=>{
+    if(!res||!res.ok){
+      R.joined=null;R.me=null;R.offline=false;try{sessionStorage.removeItem('make24-auto')}catch{}
+      netBanner(false);showScreen('joinPanel');hide('resultDlg');stopCascade();stopTimer();
+      $('joinMsg').textContent=(auto?'Couldn’t rejoin: ':'')+(res?res.error:'Something went wrong. Try again.');return}
+    $('joinMsg').textContent='';
+    R.joined={code:res.code,name:res.name,emoji:res.emoji};R.offline=false;
+    R.me=res.name;R.emoji=res.emoji;R.myId=res.id;R.code=res.code;$('youPanel').textContent=`You: ${R.emoji} ${R.me}`;
+    try{sessionStorage.setItem('make24-code',res.code);sessionStorage.setItem('make24-name',res.name);sessionStorage.setItem('make24-emoji',res.emoji);sessionStorage.setItem('make24-auto','1')}catch{}
+    try{history.replaceState(null,'','?code='+res.code)}catch{}
+    document.title=`Make 24 Race · ${res.code}`;
+    netBanner(false);
+    if(auto&&res.rejoined){R.notice='You’re back in the game.';R.noticeAt=Date.now()}
+    catchUp();render();
+    // An answer that was on its way when the connection dropped: send it again
+    if(R.pendingSubmit&&R.state&&R.state.round===R.pendingSubmit.round)submitMoves(R.pendingSubmit.moves);
+    else if(R.boardRound&&R.slots.length&&canPlay())sendProgress();
+  });
+}
 $('joinForm').onsubmit=e=>{
   e.preventDefault();
   const code=cleanCode($('codeInput').value),name=$('nameInput').value.trim();
   if(code.length!==5){$('joinMsg').textContent='Type the 5-character lobby code from the host\'s screen.';$('codeInput').focus();return}
   if(!name){$('joinMsg').textContent='Type your name first.';$('nameInput').focus();return}
   $('joinMsg').textContent='Joining…';
-  const emoji=$('emojiInput').value;
-  socket.emit('join',{code,name,emoji},res=>{
-    if(!res.ok){$('joinMsg').textContent=res.error;return}
-    $('joinMsg').textContent='';
-    R.me=res.name;R.emoji=res.emoji;R.myId=res.id;R.code=res.code;$('youPanel').textContent=`You: ${R.emoji} ${R.me}`;
-    try{sessionStorage.setItem('make24-code',res.code);sessionStorage.setItem('make24-name',name);sessionStorage.setItem('make24-emoji',res.emoji)}catch{}
-    try{history.replaceState(null,'','?code='+res.code)}catch{}
-    document.title=`Make 24 Race · ${res.code}`;
-    render();
-  });
+  join(code,name,$('emojiInput').value,false);
 };
+// Reloaded the page while in a game: go straight back in
+try{if(sessionStorage.getItem('make24-auto')==='1'&&cleanCode($('codeInput').value).length===5&&$('nameInput').value)
+  R.joined={code:cleanCode($('codeInput').value),name:$('nameInput').value,emoji:$('emojiInput').value}}catch{}
 
 // The host screen (host.html) starts rounds; players just close the results to look at the felt
 
 /* ---------- Server updates ---------- */
-socket.on('connect',()=>{$('status').textContent='Connected'});
-socket.on('disconnect',()=>{$('status').textContent='Connection lost. Refresh the page to rejoin.';R.me=null;stopTimer()});
+socket.on('connect',()=>{
+  $('status').textContent='Connected';
+  if(R.joined){netBanner(true,'Rejoining…');join(R.joined.code,R.joined.name,R.joined.emoji,true)}
+});
+// Connection dropped (Wi-Fi blip, phone locked…): keep everything on screen and rejoin automatically.
+// The cards are paused until we're back, so no moves get lost on the way.
+socket.on('disconnect',reason=>{
+  if(!R.joined)return;
+  if(reason==='io server disconnect'){   // this device rejoined from another tab, which now has the seat
+    R.joined=null;R.me=null;R.offline=false;netBanner(false);stopTimer();hide('resultDlg');stopCascade();showScreen('joinPanel');
+    try{sessionStorage.removeItem('make24-auto')}catch{}
+    $('joinMsg').textContent='You’re playing in another tab or window now. Close this one.';$('status').textContent='Not connected';return}
+  R.offline=true;R.sel=null;R.op=null;if(R.slots.length)renderCards();
+  socket.sendBuffer=[];      // don't replay old moves on the new connection
+  $('status').textContent='Reconnecting…';netBanner(true,'Connection lost. Reconnecting…');
+});
+function netBanner(on,text){const b=$('netBanner');b.hidden=!on;if(text)b.textContent=text}
+socket.on('progress',d=>{
+  const s=R.state,p=s&&s.players.find(q=>q.id===d.id);if(!p||s.phase!=='playing')return;
+  Object.assign(p,{layout:d.layout,sel:d.sel,lastMove:d.lastMove,moveSeq:d.moveSeq});
+  const me=s.players.find(q=>q.id===R.myId),g=me&&me.group!==null?s.groups.find(x=>x.id===me.group):null;
+  if(!g||!g.members.includes(d.id))return;
+  // Only my opponents' face-down cards change
+  renderOpps(g.members.filter(id=>id!==R.myId).map(id=>s.players.find(q=>q.id===id)).filter(Boolean),s,g);
+});
 socket.on('notice',t=>{R.notice=t;R.noticeAt=Date.now();render()});
-socket.on('state',s=>{R.state=s;R.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;render()});
+socket.on('state',s=>{R.state=s;R.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;catchUp();render()});
 // The host changed my name in the waiting room
 socket.on('renamed',name=>{R.me=name;$('youPanel').textContent=`You: ${R.emoji||''} ${name}`;R.notice=`The host changed your name to ${name}.`;R.noticeAt=Date.now();render()});
 socket.on('round',r=>{
   // Every group gets the same cards; suits are just for looks
-  R.nums=r.nums;R.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
-  clearTimeout(R.wrongTimer);R.wrongIdx=null;
+  R.nums=r.nums;R.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);R.boardRound=r.round;R.pendingSubmit=null;
+  clearTimeout(R.wrongTimer);R.wrongIdx=null;clearTimeout(R.heartTimer);$('heartLoss').hidden=true;
   resetBoard();R.locked=true;hide('resultDlg');stopCascade();clearOpps();clearInterval(R.nextTick);SFX.stop('cascade');
-  R.deadline=performance.now()+r.countdownMs+r.limitMs;
+  R.deadline=performance.now()+r.countdownMs+r.limitMs;R.limitMs=r.limitMs;R.practice=false;
   if(!R.me)return;
   showScreen('countdown');
   let n=Math.round(r.countdownMs/1000);
@@ -96,13 +138,27 @@ socket.on('round',r=>{
     if(n>0){cd.textContent=n;return}
     clearInterval(iv);
     const me=R.state&&R.state.players.find(p=>p.id===R.myId);
-    if(!me||me.group===null){render();return}       // joined mid-round: wait for the next one
+    R.practice=practising(R.state,me);
+    if(!me||(me.group===null&&!R.practice)){render();return}       // joined mid-round: wait for the next one
     if(R.state.phase!=='countdown'&&R.state.phase!=='playing')return;   // the host ended the game during the countdown
     R.locked=false;showScreen('board');
-    setMsg('Go! Pick a card, an operation, then another card.');
+    setMsg(R.practice?'You’re out, but you can still practise on the same cards. This doesn’t count.':'Go! Pick a card, an operation, then another card.');
     renderCards('deal');startTimer();render();
   },1000);
 });
+
+// Back after a dropped connection, in a race whose cards we never received: deal them now
+function catchUp(){
+  const s=R.state;if(!s||!R.me||R.offline)return;
+  const me=s.players.find(p=>p.id===R.myId);
+  if(s.phase!=='playing'||!me||(me.group===null&&!practising(s,me))||R.boardRound===s.round||!s.nums)return;
+  R.practice=practising(s,me);
+  R.nums=s.nums;R.suits=s.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);R.boardRound=s.round;R.pendingSubmit=null;
+  clearTimeout(R.wrongTimer);R.wrongIdx=null;resetBoard();hide('resultDlg');stopCascade();clearOpps();clearInterval(R.nextTick);
+  R.deadline=performance.now()+(s.timeLeftMs||0);R.limitMs=s.limitMs;
+  R.locked=false;showScreen('board');setMsg('Go! Pick a card, an operation, then another card.');
+  renderCards('deal');startTimer();
+}
 
 function render(){
   const s=R.state;if(!s)return;
@@ -117,30 +173,33 @@ function render(){
     :isElim(s)?`Round ${s.matchRound} · ${s.players.filter(p=>!p.out).length} left`:`Round ${s.matchRound} of ${s.matchRounds}`;
   if(me&&s.matchRound&&s.phase!=='lobby'){
     const rows=standings(s),rank=rows.findIndex(p=>samePlace(s,p,me))+1;
-    $('scorePanel').textContent=isElim(s)?(me.out?`Out (round ${me.outRound})`:`Lives: ${hearts(s,me)}`):`Score: ${me.points.toLocaleString()} · ${ordinal(rank)} of ${rows.length}`;
+    const place=allTied(s)?'':` · ${ordinal(rank)} of ${rows.length}`;
+    $('scorePanel').textContent=isElim(s)?(me.out?`Out (round ${me.outRound})`:`Lives: ${hearts(s,me)}`):`Score: ${me.points.toLocaleString()}${place}`;
   }else $('scorePanel').textContent='Score: –';
+  if(s.hold&&(s.phase==='countdown'||s.phase==='playing'||s.phase==='result'))$('status').textContent+=s.phase==='result'?' · Paused by the host':' · Paused after this round';
   $('oppPanel').textContent='Racing: '+(opps.length?listNames(opps.map(o=>o.name)):'–');
   renderOpps(opps,s,myGroup);
 
   if(!me){ // not joined yet
+    if(R.joined)return;            // rejoining: the server's reply with my new id is on its way
     showScreen('joinPanel');
     $('joinMsg').textContent=s.players.length>=s.maxPlayers?`This game is full (${s.maxPlayers} players).`:'';
     return;
   }
 
-  const sittingOut=(s.phase==='countdown'||s.phase==='playing')&&me.group===null;
+  const sittingOut=(s.phase==='countdown'||s.phase==='playing')&&me.group===null&&!practising(s,me);
   if(s.phase==='lobby'||sittingOut){
     stopTimer();showScreen('lobbyPanel');if(!sittingOut){hide('resultDlg');stopCascade()}
-    const list=$('playerList');
-    list.innerHTML=s.players.map(p=>`<li><span>${emojiTag(s,p)}${esc(p.name)}${p.id===R.myId?'<span class="you">(you)</span>':''}</span>`+
+    const list=$('playerList'),sig=s.players.map(p=>p.id+p.name+p.emoji+emojiMood(s,p.id)).join('|');
+    if(list.dataset.sig!==sig)list.dataset.sig=sig,list.innerHTML=s.players.map(p=>`<li><span>${emojiTag(s,p)}${esc(p.name)}${p.id===R.myId?'<span class="you">(you)</span>':''}</span>`+
       `</li>`).join('')||'<li class="empty">Nobody has joined yet.</li>';
     $('roundsSel').value=String(s.matchRounds);$('roundsSel').disabled=true;$('roundsSel').hidden=isElim(s);
-    $('roundsNote').textContent=isElim(s)?`Elimination: everyone has 3 lives, last one standing wins · ${s.cardCount}-card game.`:`Chosen by the host · ${s.cardCount}-card game.`;
+    $('roundsNote').textContent=isElim(s)?`Elimination: everyone has ${s.maxLives} lives, last one standing wins · ${s.cardCount}-card game.`:`Chosen by the host · ${s.cardCount}-card game.`;
     $('startBtn').hidden=true;
     if(sittingOut&&isElim(s)&&me.out){
       $('lobbyTitle').textContent='You’re out!';
       $('groupPreview').textContent=`${s.players.filter(p=>!p.out).length} players are still in.`;
-      $('lobbyMsg').textContent='You’ve lost all 3 lives. Watch the projector to see who’s the last one standing.';
+      $('lobbyMsg').textContent=`You’ve lost all ${s.maxLives} lives. Watch the projector to see who’s the last one standing.`;
     }else if(sittingOut){
       $('lobbyTitle').textContent='Round in progress';
       $('groupPreview').textContent='';
@@ -173,7 +232,12 @@ function render(){
   if(s.phase==='playing'&&!me.solved&&!me.gaveUp&&myGroup&&myGroup.winnerId&&myGroup.winnerId!==R.myId&&R.beatenRound!==s.round){
     R.beatenRound=s.round;
     const w=s.players.find(p=>p.id===myGroup.winnerId);
-    setMsg(`${w?w.name:'Your opponent'} made 24 first, but you can still score points. Keep going!`,'bad');
+    if(isElim(s)&&me.beaten){
+      // Elimination: the race is over for me. Stop the board and break a heart in the middle of the screen.
+      clearTimeout(R.wrongTimer);R.wrongIdx=null;R.locked=true;R.sel=null;R.op=null;renderCards();
+      setMsg(`${w?w.name:'Your opponent'} made 24 first. You lose a life.`,'bad');
+      heartLoss(s,me,w);
+    }else setMsg(`${w?w.name:'Your opponent'} made 24 first, but you can still score points. Keep going!`,'bad');
   }
   if(s.phase==='playing'&&me.gaveUp)setMsg('You gave up. Waiting for the others…','bad');
 
@@ -202,7 +266,8 @@ function showResult(res,s){
   if(!mine){
     title=`Round ${s.matchRound} results`;icon='i';
     expr=res.solution?`${res.solution} = 24`:'';
-    sub='You’ll race from the next round.';
+    const meOut=s.players.find(p=>p.id===R.myId);
+    sub=isElim(s)&&meOut&&meOut.out?'You’re out. Watch for the last one standing, and keep practising on the same cards each round.':'You’ll race from the next round.';
   }else if(solve){
     title=won?'You won your race!':'You made 24!';
     icon=won?'★':'✓';
@@ -217,11 +282,12 @@ function showResult(res,s){
     title=timedOut?'Out of time!':'You didn’t make 24 this round';icon=timedOut?'⏱':'i';
     expr=res.solution?`${res.solution} = 24`:'';
     sub=(mine.winner?`${mine.winner} won your race. `:'')+'No points this round. Here is one answer.';
-    if(!timedOut)setMsg(res.reason==='host'?'The host ended the game.':'Time’s up!','bad');
+    if(!timedOut&&!(isElim(s)&&me&&me.beaten))setMsg(res.reason==='host'?'The host ended the game.':'Time’s up!','bad');
   }
   const meNow=s.players.find(p=>p.id===R.myId);
   if(isElim(s)&&mine&&meNow){
     // Elimination: the result is about lives, not points
+    if(!won&&!solve&&mine.winner){title='You lost your race';icon='!'}
     if(meNow.out&&meNow.outRound===s.matchRound){title='You’re out!';icon='✕'}
     if(won)sub=`You won your race and keep your lives: ${hearts(s,meNow)}.`;
     else if(res.reason==='host')sub='The host ended the game, so nobody lost a life this round.';
@@ -253,15 +319,19 @@ function showResult(res,s){
   if(final)$('againNote').textContent='Match over. Waiting for the host…';
   else{
     // The next round starts by itself after a 3-second countdown
-    const f=()=>{const n=R.nextAt?Math.max(1,Math.min(3,Math.ceil((R.nextAt-performance.now())/1000))):3;
-      $('againNote').textContent=isElim(s)?`${s.players.filter(p=>!p.out).length} players still in. Next round in ${n}…`:`${left} round${left>1?'s':''} to go. Next round in ${n}…`};
+    // …unless the host has paused, in which case it waits for them
+    const f=()=>{const st=R.state||s,n=R.nextAt?Math.max(1,Math.min(3,Math.ceil((R.nextAt-performance.now())/1000))):3;
+      const pre=isElim(s)?`${s.players.filter(p=>!p.out).length} players still in.`:`${left} round${left>1?'s':''} to go.`;
+      $('againNote').textContent=st.hold?`${pre} Paused by the host. The next round starts when they’re ready.`:`${pre} Next round in ${n}…`};
     f();R.nextTick=setInterval(f,200);
   }
   renderCards();
 
   const open=()=>{show('resultDlg');if(!already)growScores()};
   // If I just ran out of time, let the grey-out animation play before the results appear
-  const waitFor=R.timedOutRound===s.round?Math.max(0,OUT_OF_TIME_MS-(performance.now()-R.timedOutAt)):0;
+  let waitFor=R.timedOutRound===s.round?Math.max(0,OUT_OF_TIME_MS-(performance.now()-R.timedOutAt)):0;
+  // …and let a breaking heart finish before the results cover it
+  if(R.heartRound===s.round)waitFor=Math.max(waitFor,(reduceMotion()?1500:HEART_MS)-(performance.now()-R.heartAt));
   if(waitFor>0){setTimeout(open,waitFor);return}
   const celebrate=final?(!tie&&top.id===R.myId):(!!solve&&R.celebratedRound!==s.round);
   // The scoreboard opens straight away, on top of the win cascade (no buttons to press:
@@ -282,19 +352,20 @@ function renderScoreRows(s,grow,bonkId,bonkTaken){
   const max=elim?(s.maxLives||3):Math.max(...rows.map(p=>p.points));
   const pct=v=>max>0?(v/max)*100:0;
   const box=$('scoreRows');box.classList.toggle('compact',rows.length>8);
+  const level=allTied(s);   // everyone level: no ranks (they'd all say "1=")
   box.innerHTML=rows.map((p,i)=>{
     const same=q=>samePlace(s,q,p);
     const rank=rows.findIndex(same)+1,tied=rows.filter(same).length>1;
     const before=elim?(grow&&p.lostLife?p.lives+1:p.lives):(grow?p.points-(p.gained||0):p.points);
     const bonked=p.id===bonkId;
     return `<div class="sb-row${p.id===R.myId?' me':''}${i===0&&!tie&&max>0&&!(elim&&p.out)?' lead':''}${elim&&p.out?' out':''}${bonked?' bonked':''}">`+
-      `<span class="sb-rank">${tied?rank+'=':rank}</span>`+
+      `<span class="sb-rank">${level?'':tied?rank+'=':rank}</span>`+
       `<span class="sb-name"><span class="sb-line">${emojiTag(s,p)}<b>${esc(p.name)}</b>${p.id===R.myId?' <span class="you">(you)</span>':''}</span><small>${elim&&p.out?`Out in round ${p.outRound} · `:''}${p.wins} race${p.wins===1?'':'s'} won${p.bonks?` · ${p.bonks} bonk${p.bonks>1?'s':''}`:''}</small></span>`+
-      `<span class="sb-track"><span class="sb-fill" data-to="${pct(val(p))}" style="width:${pct(before)}%"></span></span>`+
       (elim
-        ?`<span class="sb-pts"><span class="hearts" aria-label="${p.lives} lives">${hearts(s,p)}</span>`+
-          `${bonked?'<span class="gain minus">−❤️</span>':grow&&p.lostLife?'<span class="gain minus">−❤️</span>':''}</span>`
-        :`<span class="sb-pts"><span class="sb-num" data-from="${before}" data-to="${p.points}">${before.toLocaleString()}</span>`+
+        ?`<span class="sb-hearts" aria-label="${p.lives} lives">${hearts(s,p)}</span>`+
+          `<span class="sb-pts">${bonked?'<span class="gain minus">−❤️</span>':grow&&p.lostLife?'<span class="gain minus">−❤️</span>':''}</span>`
+        :`<span class="sb-track"><span class="sb-fill" data-to="${pct(val(p))}" style="width:${pct(before)}%"></span></span>`+
+          `<span class="sb-pts"><span class="sb-num" data-from="${before}" data-to="${p.points}">${before.toLocaleString()}</span>`+
           `${bonked?`<span class="gain minus">−${bonkTaken}</span>`:grow&&p.gained?`<span class="gain">+${p.gained}</span>`:''}</span>`)+
       (bonked?'<span class="bonk-pop" aria-hidden="true">BONK!</span>':'')+`</div>`;
   }).join('');
@@ -360,9 +431,12 @@ function renderCards(anim){
 }
 function canPlay(){
   const s=R.state,me=s&&s.players.find(p=>p.id===R.myId);
+  if(R.practice)return !R.locked&&!R.offline&&s&&s.phase==='playing'&&!!me;   // knocked out: just for fun
   const g=me&&me.group!==null?s.groups.find(x=>x.id===me.group):null;
-  return !R.locked&&s&&s.phase==='playing'&&me&&!me.gaveUp&&!me.solved&&g;
+  return !R.locked&&!R.offline&&s&&s.phase==='playing'&&me&&!me.gaveUp&&!me.solved&&!me.beaten&&g;
 }
+// Elimination: a player who's out keeps getting the same cards as everyone else to practise on
+const practising=(s,me)=>!!s&&!!me&&isElim(s)&&me.out&&(s.phase==='countdown'||s.phase==='playing');
 function clickCard(i){
   if(!canPlay())return;
   SFX.play('select');
@@ -388,12 +462,25 @@ function clickCard(i){
   if(left===1)R.sel=null;
   sendProgress({move:{a:from,b:i}});
   if(left===1){
-    if(v===24){
+    if(v===24&&R.practice){
+      R.locked=true;R.sel=null;setMsg(`You made 24: ${R.slots[i].e} = 24. Nice! (Practice, so it doesn’t count.)`,'good');runCascade(null);
+    }else if(v===24){
       R.locked=true;R.sel=null;setMsg('Checking…');
-      socket.emit('submit',R.moves,res=>{if(!res.ok)setMsg(res.error,'bad')});
+      submitMoves(R.moves.map(m=>({...m})));
     }else wrongAnswer(i,v);
   }else setMsg('Keep going…');
   renderCards();
+}
+// Send an answer. Kept until the server replies, so it can be re-sent if the connection drops.
+function submitMoves(moves){
+  const round=R.state&&R.state.round;R.pendingSubmit={round,moves};
+  // Seconds since my cards appeared, timed on this device, so a slow connection doesn't cost points
+  const elapsed=Math.max(0,(performance.now()-(R.deadline-(R.limitMs||30000)))/1000);
+  socket.emit('submit',moves,elapsed,res=>{
+    if(!R.pendingSubmit||R.pendingSubmit.round!==round)return;
+    R.pendingSubmit=null;
+    if(!res.ok&&!/already made 24/.test(res.error))setMsg(res.error,'bad');
+  });
 }
 // Down to one card but it isn't 24: the card shakes red and fades, then the cards
 // deal back in so the player can try again straight away (no score lost).
@@ -410,17 +497,31 @@ function wrongAnswer(i,v){
     resetBoard();R.locked=false;sendProgress({kind:'reset'});renderCards('deal');
   },reduceMotion()?400:WRONG_MS);
 }
+// Elimination: a player who lost their race sees their hearts in the middle of the screen,
+// with the life they just lost turning white
+const HEART_MS=2200;
+function heartLoss(s,me,winner){
+  const left=Math.max(0,me.lives-1),max=s.maxLives||3;
+  $('hlLeft').innerHTML='<span>❤️</span>'.repeat(left)+
+    '<span class="hl-losing"><span class="hl-red">❤️</span><span class="hl-white">🤍</span></span>'+
+    '<span>🤍</span>'.repeat(Math.max(0,max-left-1));
+  $('hlLeft').setAttribute('aria-label',`${left} ${left===1?'life':'lives'} left`);
+  R.heartAt=performance.now();R.heartRound=s.round;
+  const el=$('heartLoss');el.hidden=false;el.classList.remove('play');void el.offsetWidth;el.classList.add('play');
+  SFX.play('timeUp');
+  clearTimeout(R.heartTimer);R.heartTimer=setTimeout(()=>{el.hidden=true;el.classList.remove('play')},reduceMotion()?1500:HEART_MS);
+}
 function pickOp(op){if(!canPlay())return;if(R.sel===null){setMsg('Pick a card first.','bad');return}R.op=op;renderCards()}
 function undo(){if(!canPlay()||!R.history.length)return;R.slots=R.history.pop();R.moves.pop();R.sel=null;R.op=null;sendProgress({kind:'undo'});setMsg('Undone.');renderCards()}
 function reset(){if(!canPlay())return;resetBoard();sendProgress({kind:'reset'});setMsg('Cards reset.');renderCards('deal')}
-function giveUp(){if(!canPlay())return;R.locked=true;R.sel=null;sendProgress();socket.emit('giveUp');renderCards()}
+function giveUp(){if(!canPlay())return;R.locked=true;R.sel=null;if(R.practice){setMsg('Practice over for this round. New cards next round.');renderCards();return}sendProgress();socket.emit('giveUp');renderCards()}
 
 /* ---------- Opponents' face-down cards ----------
  * One small panel per opponent (two when you are in a group of three). We only ever
  * learn the shape of their board (which slots hold cards, which is selected, and
  * each move), never the numbers.
  */
-function sendProgress(extra){socket.emit('progress',{layout:R.slots.map(Boolean),sel:R.sel,...(extra||{})})}
+function sendProgress(extra){if(R.practice)return;socket.emit('progress',{layout:R.slots.map(Boolean),sel:R.sel,...(extra||{})})}
 const OPP=new Map();   // opponent id → { el, seq, layout, animating, pending }
 const reduceMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 function clearOpps(){OPP.clear();$('oppSide').innerHTML=''}
@@ -558,7 +659,8 @@ document.addEventListener('keydown',e=>{
   const k=e.key;
   if(k==='F1'){e.preventDefault();show('helpDlg');return}
   const open=document.querySelector('.modal.show');
-  if(open){if(k==='Escape'&&(open.id==='helpDlg'||open.id==='aboutDlg'))hide(open.id);return}
+  // Escape closes Help or About, even when they're open on top of the results
+  if(open){if(k==='Escape'){const top=['helpDlg','aboutDlg'].find(id=>$(id).classList.contains('show'));if(top)hide(top)}return}
   if(cascadeRAF){finishCascade();return}
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
   if(/^[1-9]$/.test(k)){const i=+k-1;if(R.slots&&R.slots[i])clickCard(i)}
@@ -567,4 +669,5 @@ document.addEventListener('keydown',e=>{
   else if(k==='Backspace'){e.preventDefault();undo()}else if(k==='r'||k==='R')reset();
 });
 
-showScreen('joinPanel');($('codeInput').value?$('nameInput'):$('codeInput')).focus();
+showScreen('joinPanel');
+if(R.joined)$('joinMsg').textContent='Rejoining…';else($('codeInput').value?$('nameInput'):$('codeInput')).focus();

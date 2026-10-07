@@ -55,6 +55,7 @@
             <div class="row"><span class="emoji-pick"><button type="button" id="emojiBtn" class="emoji-btn" aria-haspopup="true" aria-expanded="false" aria-controls="emojiGrid" title="Choose your emoji"></button><input type="hidden" id="emojiInput"><div id="emojiGrid" class="emoji-grid" role="dialog" aria-label="Choose your emoji" hidden></div></span><input type="text" id="nameInput" maxlength="16" autocomplete="off" placeholder="e.g. Josh">
               <button class="xp-btn default" type="submit">Join</button></div>
             <p class="hint" id="joinMsg"></p>
+            <p class="host-link">Teacher? <a href="/host.html">Host a game</a></p>
           </div>
         </div>
       </form>
@@ -106,8 +107,13 @@
       </div>
     </section>
     <canvas id="cascade" aria-hidden="true"></canvas>
+    <!-- Elimination: beaten in your race, so your hearts show in the middle of the screen and one turns white -->
+    <div class="heart-loss" id="heartLoss" hidden aria-live="assertive">
+      <div class="hl-left" id="hlLeft"></div>
+    </div>
   </main>
 
+  <div class="net-banner" id="netBanner" role="status" aria-live="polite" hidden></div>
   <footer class="statusbar">
     <span class="panel grow" id="status">Not connected</span>
     <span class="panel" id="youPanel">You: –</span>
@@ -156,16 +162,22 @@
   <div class="dialog" role="dialog" aria-labelledby="helpTitle">
     <div class="titlebar small"><span class="title" id="helpTitle">How to Race</span>
       <span class="caption-btns"><button class="cap close" data-close="helpDlg" aria-label="Close">×</button></span></div>
-    <div class="dialog-body">
+    <div class="dialog-body help-body">
+      <h3>Joining</h3>
+      <p>Type the 5-character lobby code from the projector, tap the emoji button to choose your emoji, type your name and press <b>Join</b>. Wait for the host to start the match. If your connection drops or you reload the page, you rejoin by yourself.</p>
+      <h3>Each round</h3>
       <ol>
-        <li>Type your name and join. The host starts the match from their screen.</li>
-        <li>Each round you are paired with someone new. With an odd number of players, one group has three.</li>
-        <li>After a 3-second countdown every group gets the same cards: 4 or 5, chosen by the host. Use every card to make 24.</li>
-        <li>Click a card, an operation, then another card to combine them. Cards stay whole numbers.</li>
-        <li>When your last card is 24 you score points. Everyone in your group can score, and the first to finish wins the race. A round lasts at most 30 seconds.</li>
+        <li>You race one other player (or two, if there's an odd number). Everyone gets the same 4 or 5 cards after a 3-second countdown.</li>
+        <li>Tap a card, an operation (+ − × ÷), then another card. They combine into one card. Answers must be whole numbers.</li>
+        <li>Use every card. When your last card is 24, you've made it. If it isn't, the cards deal back in so you can try again.</li>
+        <li><b>Undo</b> takes back your last step and <b>Reset</b> starts again. A round lasts at most 30 seconds.</li>
       </ol>
-      <p><b>Points:</b> making 24 scores 1,000 points for an instant answer, dropping steadily to 500 at 30 seconds. Finishing first in your group adds a 100-point bonus. Everyone's points go into one scoreboard.</p>
-      <p>Stuck? <b>Give Up</b> ends your round; your opponents can keep going.</p>
+      <h3>Game modes</h3>
+      <p><b>Points:</b> making 24 scores 1,000 points for an instant answer, dropping to 500 at 30 seconds. The first in your race gets 100 bonus points. Most points after the last round wins.</p>
+      <p><b>Elimination:</b> everyone starts with the same number of lives. The first in your race to make 24 keeps their lives and everyone else in it loses one (all of you, if nobody makes it). Lose them all and you're out, but you still get the same cards each round to practise on (it doesn't count). The last player standing wins.</p>
+      <h3>Stuck?</h3>
+      <p><b>Give Up</b> ends your round. In Points you score nothing that round. In Elimination it costs you a life. Your opponents can keep going.</p>
+      <p>Your emoji bounces when you win a race and droops when you lose. Keyboard: <kbd>1</kbd>–<kbd>5</kbd> pick a card, <kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> pick an operation, <kbd>Backspace</kbd> undo, <kbd>R</kbd> reset.</p>
       <div class="dialog-btns"><button class="xp-btn default" data-close="helpDlg">OK</button></div>
     </div>
   </div>

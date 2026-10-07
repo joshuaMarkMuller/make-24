@@ -58,13 +58,19 @@
             <div class="match-len">
               <label for="hMode">Game mode:</label>
               <select id="hMode">
-                <option value="points" selected>Points</option><option value="elim">Elimination (3 lives)</option>
+                <option value="points" selected>Points</option><option value="elim">Elimination</option>
               </select>
             </div>
             <div class="match-len">
               <label for="hCardCount">Cards:</label>
               <select id="hCardCount">
                 <option value="4" selected>4 cards</option><option value="5">5 cards</option>
+              </select>
+            </div>
+            <div class="match-len" id="hLivesRow" hidden>
+              <label for="hLives">Lives:</label>
+              <select id="hLives">
+                <option value="3" selected>3 lives</option><option value="4">4 lives</option><option value="5">5 lives</option>
               </select>
             </div>
             <div class="match-len" id="hRoundsRow">
@@ -77,7 +83,7 @@
               </select>
             </div>
             <p class="hint-note" id="hModeNote">Every card must be used to make 24.</p>
-            <p class="hint-note">The lobby closes when you press Start Match, so the code can’t be used by another class. Players who drop out can rejoin by typing the same name.</p>
+            <p class="hint-note">The lobby closes when you press Start Match, so the code can’t be used by another class. Players whose connection drops rejoin by themselves.</p>
           </fieldset>
         </div>
         <div class="count-line"><h3 id="hCount">No players yet</h3><span class="group-preview" id="hPreview"></span><span class="hint-note">Click ✎ next to a name to change it.</span></div>
@@ -109,6 +115,7 @@
       <!-- Final results: top three on a podium -->
       <div class="podium" id="hPodium" hidden aria-label="Top three players"></div>
       <div class="actions host-actions" id="hActions">
+        <button class="xp-btn" id="hPause" hidden aria-pressed="false">Pause After This Round</button>
         <button class="xp-btn" id="hEnd" hidden>End Game</button>
         <button class="xp-btn" id="hLobby" hidden>Change Settings</button>
         <button class="xp-btn default" id="hNext" hidden>Next Round</button>
@@ -160,12 +167,13 @@
         <li>Choose the game mode (Points or Elimination), the cards and, for Points, the match length. Then press <b>Start Match</b>.</li>
         <li>Each round, players are drawn into pairs (one group of three when there's an odd number) and race the same cards (4 or 5, your choice). A round lasts at most 30 seconds.</li>
         <li><b>Points:</b> everyone who makes 24 scores 1,000 points for an instant answer, dropping to 500 at 30 seconds. The first in each group gets 100 bonus points.</li>
-        <li><b>Elimination:</b> everyone has 3 lives. The first in each group to make 24 keeps their lives; everyone else in the group loses one (all of them if nobody makes 24). Bonk takes a life. The last player standing wins.</li>
-        <li>Once the match starts the lobby is closed: new players can’t join, but anyone who drops out can rejoin with the same name and keeps their score.</li>
+        <li><b>Elimination:</b> everyone has 3, 4 or 5 lives (your choice). The first in each group to make 24 keeps their lives; everyone else in the group loses one (all of them if nobody makes 24). Bonk takes a life. Players who are out keep getting the same cards to practise on. The last player standing wins.</li>
+        <li>Once the match starts the lobby is closed: new players can’t join, but anyone whose connection drops or who reloads the page rejoins by themselves and keeps their score or lives (on another device, they type exactly the same name).</li>
         <li>Watch each race and the live scoreboard here. After each round's results, the next round starts by itself after a 3-second countdown.</li>
       </ol>
       <p><b>Names:</b> in the waiting room, click ✎ next to a player's name to change it.</p>
-      <p><b>Bonk:</b> if you suspect someone is cheating, press <b>Bonk</b> next to their name on the scoreboard to take 500 points from them (never below 0). Everyone sees their row shake with a big “BONK!”.</p>
+      <p><b>Bonk:</b> if you suspect someone is cheating, press <b>Bonk</b> next to their name on the scoreboard, then press <b>Sure?</b> within 3 seconds to confirm. It takes 500 points from them (never below 0). Everyone sees their row shake with a big “BONK!”.</p>
+      <p><b>Pause:</b> press <b>Pause After This Round</b> during a round (or <b>Pause</b> on the results) and the next round won't start until you press <b>Resume</b> or <b>Start Next Round</b>. Players see that the game is paused.</p>
       <p><b>End Game</b> stops the match at any point. Races still going stop, points already scored count, and the scoreboard at that moment is the final result.</p>
       <p>The host screen doesn't play. Only one host screen can be open at a time.</p>
       <div class="dialog-btns"><button class="xp-btn default" data-close="helpDlg">OK</button></div>

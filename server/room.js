@@ -22,7 +22,7 @@ const FIRST_BONUS = 100;           // extra points for being first in your group
 const NEXT_MS = 3000;              // countdown on the results before the next round starts by itself
 const OUT_OF_TIME_MS = 1900;       // players' screens show “Out of time!” this long before the results
 const BONK = 500;
-const LIVES = 3;                   // elimination mode: lives each player starts with                  // points the host can take away from a suspected cheat
+const LIVES = 3;                   // elimination mode: default lives each player starts with (host chooses 3–5)
 const PREC = { '+': 1, '−': 1, '×': 2, '÷': 2 };
 
 // Speed points: 1000 for an instant answer, dropping steadily to 500 at the time limit
@@ -78,7 +78,9 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   const game = {
     phase: 'lobby',          // lobby → countdown → playing → result → … → final
     seq: 0,                  // counts every round ever played (lets screens tell rounds apart)
-    mode: 'points',          // 'points' (most points after N rounds wins) or 'elim' (3 lives, last one standing wins)
+    mode: 'points',          // 'points' (most points after N rounds wins) or 'elim' (lives, last one standing wins)
+    startLives: LIVES,       // elimination: lives each player starts with (host chooses 3–5)
+    hold: false,             // host paused: the next round waits until the host resumes
     matchRounds: 5,          // rounds in this match (host chooses 1–10; points mode only)
     cardCount: 4,            // cards per puzzle (host chooses 4 or 5); the target is always 24
     matchRound: 0,           // round number within the current match (0 = not started)
@@ -101,7 +103,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   const hostId = () => game.hostSocket;
 
   function newPlayer(name, emoji) {
-    const p = { name, emoji: cleanEmoji(emoji), lives: LIVES, out: false, outRound: 0, lostLife: false, points: 0, wins: 0, gained: 0, bonks: 0, group: null, gaveUp: false, solved: false };
+    const p = { name, emoji: cleanEmoji(emoji), lives: game.startLives, out: false, outRound: 0, lostLife: false, points: 0, wins: 0, gained: 0, bonks: 0, group: null, gaveUp: false, solved: false };
     resetBoardShape(p);
     return p;
   }
@@ -117,7 +119,8 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       matchRound: game.matchRound,
       matchRounds: game.matchRounds,
       mode: game.mode,
-      maxLives: LIVES,
+      hold: game.hold,
+      maxLives: game.startLives,
       cardCount: game.cardCount,
       hostId: hostId(),
       hostConnected: !!game.hostSocket,
@@ -131,7 +134,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       nextInMs: game.phase === 'result' && game.nextAt ? Math.max(0, game.nextAt - Date.now()) : null,   // auto-start of the next round
       players: [...game.players.entries()].map(([id, p]) => ({
         id, name: p.name, emoji: p.emoji, lives: p.lives, out: p.out, outRound: p.outRound, lostLife: p.lostLife, points: p.points, wins: p.wins, gained: p.gained, bonks: p.bonks,
-        group: p.group, gaveUp: p.gaveUp, solved: p.solved,
+        group: p.group, gaveUp: p.gaveUp, solved: p.solved, beaten: !!p.beaten,
         // Shape of the player's board for their opponents' face-down view (never the numbers)
         layout: p.layout, sel: p.sel, moveSeq: p.moveSeq, lastMove: p.lastMove,
       })),
@@ -153,8 +156,12 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
 
   function repeatCost(groups) {
     let cost = 0;
-    for (const g of groups) for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++)
-      cost += game.pairCounts.get(pairKey(g[i], g[j])) || 0;
+    for (const g of groups) {
+      for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++)
+        cost += game.pairCounts.get(pairKey(g[i], g[j])) || 0;
+      // Share the group of three around: anyone who has already been in it costs more
+      if (g.length === 3) for (const id of g) cost += 3 * (game.players.get(id)?.trios || 0);
+    }
     return cost;
   }
   // Try many random draws and keep the one that repeats the fewest earlier pairings
@@ -165,8 +172,11 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       const cost = repeatCost(groups);
       if (cost < bestCost) { best = groups; bestCost = cost; }
     }
-    for (const g of best) for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) {
-      const k = pairKey(g[i], g[j]); game.pairCounts.set(k, (game.pairCounts.get(k) || 0) + 1);
+    for (const g of best) {
+      for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) {
+        const k = pairKey(g[i], g[j]); game.pairCounts.set(k, (game.pairCounts.get(k) || 0) + 1);
+      }
+      if (g.length === 3) for (const id of g) { const p = game.players.get(id); if (p) p.trios = (p.trios || 0) + 1; }
     }
     return best;
   }
@@ -177,7 +187,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     game.pairCounts.clear();
     game.groups = [];
     game.result = null;
-    for (const p of [...game.players.values(), ...game.departed.values()]) { p.points = 0; p.wins = 0; p.gained = 0; p.bonks = 0; p.lives = LIVES; p.out = false; p.outRound = 0; p.lostLife = false; p.group = null; p.gaveUp = false; p.solved = false; resetBoardShape(p); }
+    for (const p of [...game.players.values(), ...game.departed.values()]) { p.points = 0; p.wins = 0; p.gained = 0; p.bonks = 0; p.lives = game.startLives; p.out = false; p.outRound = 0; p.lostLife = false; p.trios = 0; p.group = null; p.gaveUp = false; p.solved = false; resetBoardShape(p); }
   }
 
   function startRound() {
@@ -185,7 +195,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     if (game.matchRound === 0) resetMatch();
     const ids = [...game.players.entries()].filter(([, p]) => !(game.mode === 'elim' && p.out)).map(([id]) => id);
     game.groups = drawGroups(ids).map((members, i) => ({ id: i, members, winnerId: null, solvers: [], done: false }));
-    for (const p of game.players.values()) { p.group = null; p.gaveUp = false; p.solved = false; p.gained = 0; p.lostLife = false; resetBoardShape(p); }
+    for (const p of game.players.values()) { p.group = null; p.gaveUp = false; p.solved = false; p.beaten = false; p.gained = 0; p.lostLife = false; resetBoardShape(p); }
     game.groups.forEach(g => g.members.forEach(id => { game.players.get(id).group = g.id; }));
 
     game.phase = 'countdown';
@@ -208,7 +218,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   // A group's race is over once nobody in it is still trying (everyone has solved, given up or left)
   function groupFinishedCheck(g) {
     if (g.done) return;
-    const live = g.members.filter(id => { const p = game.players.get(id); return p && !p.gaveUp && !p.solved; });
+    const live = g.members.filter(id => { const p = game.players.get(id); return p && !p.gaveUp && !p.solved && !p.beaten; });
     if (live.length === 0) g.done = true;
   }
   function checkRoundOver() {
@@ -243,11 +253,18 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     // Between rounds: once the results are on screen, count down 3 seconds and start the next round
     game.nextAt = 0;
     if (game.phase === 'result') {
-      const wait = (reason === 'time' ? OUT_OF_TIME_MS : 0) + NEXT_MS;
-      game.nextAt = Date.now() + wait;
-      game.timers.push(setTimeout(() => { if (game.phase === 'result' && game.players.size >= 2) startRound(); }, wait));
+      // …and give a just-beaten player's breaking-heart animation (2.2 s) time to finish first
+      const heartLeft = game.mode === 'elim' && game.lastBeatenAt ? Math.max(0, 2200 - (Date.now() - game.lastBeatenAt)) : 0;
+      const wait = Math.max(reason === 'time' ? OUT_OF_TIME_MS : 0, heartLeft) + NEXT_MS;
+      if (!game.hold) scheduleNext(wait);
     }
     broadcast();
+  }
+
+  // Start the next round after `wait` ms (unless the host has paused)
+  function scheduleNext(wait) {
+    game.nextAt = Date.now() + wait;
+    game.timers.push(setTimeout(() => { if (game.phase === 'result' && !game.hold && game.players.size >= 2) startRound(); }, wait));
   }
 
   /* ---------- Elimination mode ---------- */
@@ -282,6 +299,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   function backToLobby(message) {
     clearTimers();
     game.phase = 'lobby';
+    game.hold = false;
     resetMatch();
     game.departed.clear();          // the lobby is open again, so anyone can join
     if (message) emit('notice', message);
@@ -299,26 +317,71 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
   }
   const hostIsConnected = () => !!game.hostSocket && io.sockets.sockets.has(game.hostSocket);
 
-  // A player joins. The lobby closes once the match starts (so the code can't be passed to
-  // another class): after that, only players who dropped out can rejoin, by typing the same
-  // name, and they get their score back. Anyone rejoining mid-round plays from the next round.
-  function addPlayer(socket, name, emoji) {
+  // Move a player's seat from an old connection to a new one (same device reconnecting):
+  // their place in this round's group, wins and solves all follow them.
+  function moveSeat(oldId, newId, player) {
+    game.players.delete(oldId);
+    game.players.set(newId, player);
+    for (const g of game.groups) {
+      g.members = g.members.map(id => (id === oldId ? newId : id));
+      if (g.winnerId === oldId) g.winnerId = newId;
+      for (const x of g.solvers) if (x.id === oldId) x.id = newId;
+    }
+    if (game.result) for (const g of game.result.groups) {
+      g.members = g.members.map(id => (id === oldId ? newId : id));
+      if (g.winnerId === oldId) g.winnerId = newId;
+      for (const x of g.solvers) if (x.id === oldId) x.id = newId;
+    }
+  }
+
+  // A player joins. Each device sends a private token, so a player whose connection drops
+  // (phone locks, Wi-Fi blips) gets their own seat back automatically, with their score or lives.
+  // The lobby closes once the match starts (so the code can't be passed to another class):
+  // after that only returning players can join (by token, or by typing exactly the same name).
+  function addPlayer(socket, name, emoji, token) {
+    token = typeof token === 'string' ? token.slice(0, 64) : '';
+    // 1. The same device is still seated (the server hasn't noticed the old connection drop yet)
+    if (token) for (const [oldId, p] of game.players) {
+      if (p.token !== token || oldId === socket.id) continue;
+      const old = io.sockets.sockets.get(oldId);
+      if (old) { old.data.replaced = true; old.disconnect(true); }
+      moveSeat(oldId, socket.id, p);
+      socket.join(code); attach(socket); broadcast();
+      return { ok: true, name: p.name, emoji: p.emoji, id: socket.id, code, rejoined: true };
+    }
     if (game.players.size >= MAX_PLAYERS) return { ok: false, error: `This lobby is full (${MAX_PLAYERS} players).` };
-    let player;
-    if (game.phase !== 'lobby') {
-      const key = String(name || '').trim().replace(/\s+/g, ' ').slice(0, 16).toLowerCase();
+    let player, rejoined = false;
+    // 2. A player who dropped out during the match comes back (by device token, or by exact name)
+    const nameKey = String(name || '').trim().replace(/\s+/g, ' ').slice(0, 16).toLowerCase();
+    const key = token && game.departed.has('t:' + token) ? 't:' + token : game.departed.has('n:' + nameKey) ? 'n:' + nameKey : null;
+    if (key && game.phase !== 'lobby') {
       player = game.departed.get(key);
-      if (!player) return { ok: false, error: 'This game has already started, so the lobby is closed. If you were already playing, type exactly the same name to rejoin.' };
-      game.departed.delete(key);
+      for (const [k, v] of game.departed) if (v === player) game.departed.delete(k);
       player.name = uniqueName(player.name);
-      player.group = null; player.gaveUp = false; player.solved = false; player.gained = 0; resetBoardShape(player);
+      if (token) player.token = token;
+      // Their old connection's place in this round's group and results moves to the new one
+      game.players.set(player.lastId, player);
+      moveSeat(player.lastId, socket.id, player);
+      if (game.phase === 'countdown' || game.phase === 'playing') {
+        // Still in this round's race? Carry on with it; otherwise they play from the next round
+        const g = player.group !== null ? game.groups[player.group] : null;
+        if (g && g.members.includes(socket.id)) {
+          if (g.done && !player.solved && !player.gaveUp && !player.beaten) g.done = false;
+        } else { player.group = null; player.gaveUp = false; player.solved = false; player.gained = 0; resetBoardShape(player); }
+      }
+      rejoined = true;
       emit('notice', `${player.name} rejoined the game.`);
-    } else player = newPlayer(uniqueName(name), emoji);
-    game.players.set(socket.id, player);
+    } else if (game.phase !== 'lobby') {
+      return { ok: false, error: 'This game has already started, so the lobby is closed. If you were already playing, type exactly the same name to rejoin.' };
+    } else {
+      player = newPlayer(uniqueName(name), emoji);
+      player.token = token;
+      game.players.set(socket.id, player);
+    }
     socket.join(code);
     attach(socket);
     broadcast();
-    return { ok: true, name: player.name, emoji: player.emoji, id: socket.id, code };
+    return { ok: true, name: player.name, emoji: player.emoji, id: socket.id, code, rejoined };
   }
 
   /* ---------- Messages from this lobby's host and players ---------- */
@@ -333,6 +396,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       if (!isHost()) return;
       if (game.players.size < 2) return socket.emit('notice', 'At least 2 players need to join before you can start.');
       if (game.phase === 'final') { resetMatch(); game.phase = 'lobby'; }
+      game.hold = false;
       if (game.phase === 'lobby' || game.phase === 'result') startRound();
     });
 
@@ -400,27 +464,59 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     socket.on('setCards', n => {
       if (!isHost() || game.phase !== 'lobby') return;
       const c = Math.round(Number(n));
-      if (![4, 5].includes(c)) return;
+      if (![4, 5].includes(c) || c === game.cardCount) return;   // nothing to change
       game.cardCount = c;
       for (const p of game.players.values()) resetBoardShape(p);
       broadcast();
     });
 
-    // Host only, in the waiting room: points match or elimination (3 lives, last one standing)
+    // Host only, in the waiting room: points match or elimination (last one standing)
     socket.on('setMode', m => {
       if (!isHost() || game.phase !== 'lobby') return;
-      game.mode = m === 'elim' ? 'elim' : 'points';
+      const mode = m === 'elim' ? 'elim' : 'points';
+      if (mode === game.mode) return;
+      game.mode = mode;
+      broadcast();
+    });
+
+    // Host only, during a match: pause after this round (the next round waits) or resume.
+    // Pausing during a round lets it finish; pausing on the results stops the countdown.
+    socket.on('hold', on => {
+      if (!isHost() || game.phase === 'lobby' || game.phase === 'final') return;
+      game.hold = !!on;
+      if (game.phase === 'result') {
+        clearTimers(); game.nextAt = 0;
+        if (!game.hold) scheduleNext(NEXT_MS);
+      }
+      broadcast();
+    });
+
+    // Host only, in the waiting room: elimination lives (3, 4 or 5)
+    socket.on('setLives', n => {
+      if (!isHost() || game.phase !== 'lobby') return;
+      const lives = Math.max(3, Math.min(5, Math.round(Number(n)) || LIVES));
+      if (lives === game.startLives) return;
+      game.startLives = lives;
+      for (const p of game.players.values()) p.lives = game.startLives;
       broadcast();
     });
 
     socket.on('setRounds', n => {
       if (!isHost() || game.phase !== 'lobby') return;
-      game.matchRounds = Math.max(1, Math.min(MAX_ROUNDS, Math.round(Number(n)) || 5));
+      const rounds = Math.max(1, Math.min(MAX_ROUNDS, Math.round(Number(n)) || 5));
+      if (rounds === game.matchRounds) return;
+      game.matchRounds = rounds;
       broadcast();
     });
 
     // A player's board changed: which slots hold cards, which card is selected, and the last move.
     socket.on('progress', info => {
+      // At most 10 board updates a second per player, so a stuck or misbehaving device can't flood the class
+      const now = Date.now();
+      socket.data.bucket = Math.min(10, (socket.data.bucket ?? 10) + (now - (socket.data.bucketAt || now)) / 100);
+      socket.data.bucketAt = now;
+      if (socket.data.bucket < 1) return;
+      socket.data.bucket -= 1;
       const p = game.players.get(socket.id);
       if (!p || p.group === null || game.phase !== 'playing' || !info || typeof info !== 'object') return;
       const n = game.puzzle ? game.puzzle.nums.length : game.cardCount;
@@ -435,20 +531,39 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       } else if (info.kind === 'undo' || info.kind === 'reset') {
         p.lastMove = { kind: info.kind }; p.moveSeq++;
       }
-      broadcast();
+      // Only this player's board changed: send just that, and only to the screens that show it
+      // (their opponents and the host), instead of the whole game to the whole class
+      const g = game.groups[p.group];
+      const to = [...(g ? g.members : []), game.hostSocket].filter(id => id && id !== socket.id);
+      if (to.length) io.to(to).emit('progress', { id: socket.id, layout: p.layout, sel: p.sel, lastMove: p.lastMove, moveSeq: p.moveSeq });
+      game.lastActive = now;
     });
 
-    socket.on('submit', (moves, reply) => {
+    // moves: the player's moves; clientTime (optional): seconds since the cards appeared, timed on their device
+    socket.on('submit', (moves, clientTime, reply) => {
+      if (typeof clientTime === 'function') { reply = clientTime; clientTime = undefined; }
       const p = game.players.get(socket.id);
       const g = p && p.group !== null ? game.groups[p.group] : null;
-      if (!g || game.phase !== 'playing' || p.gaveUp) return reply?.({ ok: false, error: 'The round is over.' });
+      if (!g || game.phase !== 'playing' || p.gaveUp || p.beaten) return reply?.({ ok: false, error: 'The round is over.' });
       if (p.solved) return reply?.({ ok: false, error: 'You have already made 24 this round.' });
       const expr = checkMoves(game.puzzle.nums, moves);
       if (!expr) return reply?.({ ok: false, error: 'That doesn’t make 24.' });
-      const time = (Date.now() - game.startAt) / 1000;
+      // Speed is timed on the player's device, so a slow connection doesn't cost points. The device's time
+      // can only be a little less than the server's (the answer took time to arrive), never more, and at
+      // most 3 seconds less; anything else falls back to the server's own timing.
+      const serverTime = (Date.now() - game.startAt) / 1000;
+      const ct = Number(clientTime);
+      const time = Number.isFinite(ct) && ct >= 0 && ct <= serverTime + 0.25 && ct >= serverTime - 3 ? Math.min(ct, serverTime) : serverTime;
       const first = !g.winnerId;
       const points = roundPoints(time) + (first ? FIRST_BONUS : 0);
       if (first) { g.winnerId = socket.id; p.wins += 1; }
+      // Elimination: once someone in the group makes 24, the race is over for everyone else in it
+      if (first && game.mode === 'elim') {
+        for (const id of g.members) {
+          const q = game.players.get(id);
+          if (q && id !== socket.id && !q.solved && !q.gaveUp) { q.beaten = true; game.lastBeatenAt = Date.now(); }
+        }
+      }
       g.solvers.push({ id: socket.id, time, expr, points, first });
       p.solved = true; p.points += points; p.gained = points;
       groupFinishedCheck(g);
@@ -460,7 +575,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     socket.on('giveUp', () => {
       const p = game.players.get(socket.id);
       const g = p && p.group !== null ? game.groups[p.group] : null;
-      if (!g || game.phase !== 'playing' || p.solved || p.gaveUp) return;
+      if (!g || game.phase !== 'playing' || p.solved || p.gaveUp || p.beaten) return;
       p.gaveUp = true;
       groupFinishedCheck(g);
       broadcast();
@@ -469,10 +584,15 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
 
     socket.on('disconnect', () => {
       if (socket.id === game.hostSocket) { game.hostSocket = null; broadcast(); return; }
+      if (socket.data.replaced) return;            // this device already reconnected on a new connection
       const p = game.players.get(socket.id);
       if (!p) return;
       game.players.delete(socket.id);
-      if (game.phase !== 'lobby') game.departed.set(p.name.toLowerCase(), p);   // may rejoin with the same name
+      if (game.phase !== 'lobby') {                 // may come back: by device token, or by typing the same name
+        p.lastId = socket.id;
+        if (p.token) game.departed.set('t:' + p.token, p);
+        game.departed.set('n:' + p.name.toLowerCase(), p);
+      }
       emit('notice', `${p.name} left the game.`);
       if (game.phase !== 'lobby' && game.players.size < 2) return backToLobby('Not enough players left, so the match has ended.');
       if (checkLastStanding()) return;
