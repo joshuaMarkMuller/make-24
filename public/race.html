@@ -48,7 +48,7 @@
           <div class="dlg-icon">24</div>
           <div>
             <h2>Make 24 Race</h2>
-            <p>Type the lobby code on the host's screen, pick an emoji and type your name. Everyone races in pairs with the same cards, and everyone who makes 24 in time scores points.</p>
+            <p>Type the lobby code on the host's screen, pick an emoji and type your name. You race in pairs, each pair with its own cards, and everyone who makes 24 in time scores points.</p>
             <label for="codeInput">Lobby code:</label>
             <div class="row"><input type="text" id="codeInput" class="code-input" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="KQ7PX"></div>
             <label for="nameInput">Your emoji and name:</label>
@@ -88,7 +88,7 @@
 
     <!-- Board -->
     <section class="board" id="board" hidden>
-      <div id="msg">Pick a card, an operation, then another card.</div>
+      <div id="msg">Get ready</div>
       <div class="play-row">
         <div class="cards" id="cards"></div>
         <!-- Opponents' boards, face down: shows what they do but never their numbers -->
@@ -172,14 +172,14 @@
       <p>Type the 5-character lobby code from the projector, tap the emoji button to choose your emoji, type your name and press <b>Join</b>. Wait for the host to start the match. If your connection drops or you reload the page, you rejoin by yourself.</p>
       <h3>Each round</h3>
       <ol>
-        <li>You race one other player (or two, if there's an odd number). Everyone gets the same 4 or 5 cards after a 3-second countdown.</li>
+        <li>You race one other player (or two, if there's an odd number). After a 3-2-1 countdown you and your opponent get the same 4 or 5 cards; every other pair has different ones.</li>
         <li>Tap a card, an operation (+ − × ÷), then another card. They combine into one card. Answers must be whole numbers.</li>
         <li>Use every card. When your last card is 24, you've made it. If it isn't, the cards deal back in so you can try again.</li>
         <li><b>Undo</b> takes back your last step and <b>Reset</b> starts again. A round lasts at most 30 seconds.</li>
       </ol>
       <h3>Game modes</h3>
       <p><b>Points:</b> making 24 scores 1,000 points for an instant answer, dropping to 500 at 30 seconds. The first in your race gets 100 bonus points. Most points after the last round wins.</p>
-      <p><b>Elimination:</b> everyone starts with the same number of lives. The first in your race to make 24 keeps their lives and everyone else in it loses one (all of you, if nobody makes it). Lose them all and you're out, but you still get the same cards each round to practise on (it doesn't count). The last player standing wins.</p>
+      <p><b>Elimination:</b> everyone starts with the same number of lives. The first in your race to make 24 keeps their lives and everyone else in it loses one (all of you, if nobody makes it). Lose them all and you're out, but you still get cards each round to practise on (it doesn't count). The last player standing wins.</p>
       <h3>Win three in a row</h3>
       <p>Win your race three rounds in a row and you can <b>steal</b>: pick a player to take 300 points from (in Elimination, a life from someone with two or more). You have 10 seconds to choose. Then it takes three more wins in a row to steal again.</p>
       <p>The little black window under your cards shows who beat whom in the other races, and any steals, as they happen.</p>

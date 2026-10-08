@@ -7,7 +7,7 @@
  *
  * Rules: up to 24 players, drawn into pairs each round (plus one group of three when
  * the number is odd), new opponents every round where possible. Every group gets the
- * same 4 or 5 cards at once. Everyone who makes 24 within 30 seconds scores points
+ * own 4 or 5 cards at once (no two groups share a puzzle in a round). Everyone who makes 24 within 30 seconds scores points
  * for their own speed, and the first in each group gets a bonus.
  */
 const crypto = require('crypto');
@@ -16,7 +16,7 @@ const { cleanEmoji } = require('../public/js/emoji.js');
 
 const MAX_PLAYERS = 24;
 const MAX_ROUNDS = 10;
-const COUNTDOWN_MS = 3000;
+const COUNTDOWN_MS = 3750;          // 3-2-1 before each round (1.25 s per number)
 const ROUND_MS = 30000;            // time limit for each round
 const FIRST_BONUS = 100;           // extra points for being first in your group
 const NEXT_MS = 3000;              // countdown on the results before the next round starts by itself
@@ -95,7 +95,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     players: new Map(),      // socket.id → player (see newPlayer)
     groups: [],              // this round's groups: { id, members, winnerId, solvers, done }
     pairCounts: new Map(),   // "idA|idB" → times these two have raced each other this match
-    puzzle: null,            // { nums, sols }
+    practice: null,          // { nums, sols }: cards for players not in a race (knocked out, or joined mid-round)
     startAt: 0,              // server time the round started (after the countdown)
     endsAt: 0,               // server time the round's time limit runs out
     timers: [],
@@ -135,7 +135,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       hostConnected: !!game.hostSocket,
       lobbyOpen: game.phase === 'lobby',   // joining closes when the match starts
       joinUrls,
-      nums: game.phase === 'lobby' ? null : game.puzzle?.nums || null,
+      practiceNums: game.phase === 'lobby' ? null : game.practice?.nums || null,
       maxPlayers: MAX_PLAYERS,
       limitMs: ROUND_MS,
       firstBonus: FIRST_BONUS,
@@ -147,7 +147,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
         // Shape of the player's board for their opponents' face-down view (never the numbers)
         layout: p.layout, sel: p.sel, moveSeq: p.moveSeq, lastMove: p.lastMove,
       })),
-      groups: game.groups.map(g => ({ id: g.id, members: g.members, winnerId: g.winnerId, done: g.done })),
+      groups: game.groups.map(g => ({ id: g.id, members: g.members, winnerId: g.winnerId, done: g.done, nums: g.puzzle ? g.puzzle.nums : null })),
       result: game.result,
     };
   }
@@ -213,11 +213,15 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     game.phase = 'countdown';
     game.seq++;
     game.matchRound++;
-    game.puzzle = makePuzzle(game.cardCount);
+    // Every group gets its own puzzle (makePuzzle never repeats a recent one, so no two groups share)
+    for (const g of game.groups) g.puzzle = makePuzzle(game.cardCount);
+    game.practice = makePuzzle(game.cardCount);
     game.result = null;
     game.startAt = Date.now() + COUNTDOWN_MS;
     game.endsAt = game.startAt + ROUND_MS;
-    emit('round', { round: game.seq, nums: game.puzzle.nums, countdownMs: COUNTDOWN_MS, limitMs: ROUND_MS });
+    const round = { round: game.seq, countdownMs: COUNTDOWN_MS, limitMs: ROUND_MS };
+    for (const [id, p] of game.players) io.to(id).emit('round', { ...round, nums: p.group !== null ? game.groups[p.group].puzzle.nums : game.practice.nums });
+    if (game.hostSocket) io.to(game.hostSocket).emit('round', { ...round, nums: null });   // the host doesn't show cards
     broadcast();
     game.timers.push(setTimeout(() => {
       if (game.phase !== 'countdown') return;
@@ -246,11 +250,12 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       groups: game.groups.map(g => ({
         members: g.members, names: g.members.map(nameOf),
         winnerId: g.winnerId, winner: g.winnerId ? nameOf(g.winnerId) : null,
+        nums: g.puzzle.nums, solution: g.puzzle.sols[0]?.e || null,
         solvers: g.solvers.map(x => ({ ...x, name: nameOf(x.id) })),
       })),
       solvedCount: game.groups.reduce((n, g) => n + g.solvers.length, 0),
       fastest: fastest ? { id: fastest.id, name: nameOf(fastest.id), time: fastest.time } : null,
-      solution: game.puzzle.sols[0]?.e || null,
+      practiceSolution: game.practice?.sols[0]?.e || null,
     };
     game.result.reason = endMatch ? 'host' : reason;
     if (game.mode === 'elim') {
@@ -560,7 +565,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       socket.data.bucket -= 1;
       const p = game.players.get(socket.id);
       if (!p || p.group === null || game.phase !== 'playing' || !info || typeof info !== 'object') return;
-      const n = game.puzzle ? game.puzzle.nums.length : game.cardCount;
+      const n = game.groups[p.group]?.puzzle?.nums.length || game.cardCount;
       const layout = Array.isArray(info.layout) && info.layout.length === n ? info.layout.map(Boolean) : null;
       if (!layout || !layout.some(Boolean)) return;
       p.layout = layout;
@@ -587,7 +592,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       const g = p && p.group !== null ? game.groups[p.group] : null;
       if (!g || game.phase !== 'playing' || p.gaveUp || p.beaten) return reply?.({ ok: false, error: 'The round is over.' });
       if (p.solved) return reply?.({ ok: false, error: 'You have already made 24 this round.' });
-      const expr = checkMoves(game.puzzle.nums, moves);
+      const expr = checkMoves(g.puzzle.nums, moves);
       if (!expr) return reply?.({ ok: false, error: 'That doesn’t make 24.' });
       // Speed is timed on the player's device, so a slow connection doesn't cost points. The device's time
       // can only be a little less than the server's (the answer took time to arrive), never more, and at

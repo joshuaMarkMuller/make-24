@@ -14,7 +14,8 @@
  *
  * Each class has a host screen and two players in real (headless) browsers, one laptop-sized
  * and one phone-sized; the rest are simulated phones. While the matches play, it:
- *   - checks every round: groups, speed points, scores, nobody seeing another class's game
+ *   - checks every round: groups, speed points, scores, each pair having its own puzzle,
+ *     and nobody seeing another class's game
  *   - drops connections (one phone, five at once, ten at once), reloads a page mid-round,
  *     tries to take a playing student's seat from another device, and has a phone leave and come back between rounds
  *   - tries to join mid-match with a new name and with someone else's name
@@ -149,7 +150,7 @@ async function startServer() {
     });
     s.on('disconnect', () => { s.sendBuffer = []; });
     s.on('round', r => {
-      me.timers.forEach(clearTimeout); me.timers = []; me.moves = findMoves(r.nums); me.startAt = Date.now() + r.countdownMs; me.stealing = false;
+      me.timers.forEach(clearTimeout); me.timers = []; me.moves = findMoves(r.nums); me.nums = r.nums.join(); me.startAt = Date.now() + r.countdownMs; me.stealing = false;
       if (me.onRound) return me.onRound(r);
       if (me.manual) return;   // this phone is being driven by a check
       if (!me.moves) fail(`${L.name}: unsolvable puzzle ${r.nums}`);
@@ -194,6 +195,14 @@ async function startServer() {
           if (!g.members.includes(x.id)) fail(`${L.name} round ${st.matchRound}: ${x.name} scored in a race they weren't in`);
           L.solverPts.set(x.name, (L.solverPts.get(x.name) || 0) + x.points);
         }
+      }
+      // Each pair has its own puzzle: no two groups share one, and everyone in a group got the same cards
+      const keys = st.result.groups.map(g => [...g.nums].sort((a, b) => a - b).join());
+      if (new Set(keys).size !== keys.length) fail(`${L.name} round ${st.matchRound}: two groups had the same puzzle`);
+      L.puzzleChecks = (L.puzzleChecks || 0) + 1;
+      for (const g of st.result.groups) for (const id of g.members) {
+        const sim = (L.simsList || (Array.isArray(L.sims) ? L.sims : [])).find(x => x.id === id);
+        if (sim && sim.nums && sim.nums !== g.nums.join()) fail(`${L.name} round ${st.matchRound}: ${sim.name} was dealt ${sim.nums}, not their group's ${g.nums.join()}`);
       }
       L.trios = L.trios || new Map();
       for (const g of st.groups) if (g.members.length === 3) for (const id of g.members) { const n = st.players.find(p => p.id === id)?.name; if (n) L.trios.set(n, (L.trios.get(n) || 0) + 1); }
@@ -487,7 +496,7 @@ async function startServer() {
       const g = f && st.groups.find(g => g.members.includes(f.id));
       const opps = B.sims.filter(x => g && g.members.includes(x.id) && x !== f);
       const before = opps.map(o => (o.from && o.from[f.id]) || 0), states0 = B.sims[0].cardOnlyStates || 0;
-      const nums = st.nums.length;
+      const nums = B.cards;
       for (let k = 0; k < 50; k++) f.s.emit('progress', { layout: new Array(nums).fill(true), sel: k % nums });   // a burst of 50 at once
       await sleep(300);
       const got = opps.map((o, i) => ((o.from && o.from[f.id]) || 0) - before[i]);
@@ -528,14 +537,14 @@ async function startServer() {
       await bp.waitForFunction(r => (R.state.phase === 'playing' && R.state.matchRound > r && R.practice && !R.locked) || R.state.phase === 'final', outRound, { timeout: 90000 });
       if (await bp.evaluate(() => R.state.phase === 'final')) { skipped.push('practice when out (the match ended straight after)'); return; }
       const v = await bp.evaluate(() => ({ board: !document.getElementById('board').hidden, msg: document.getElementById('msg').textContent }));
-      ok(v.board && /practise/.test(v.msg), `D (Elimination): a knocked-out player gets the same cards to practise on ("${v.msg.slice(0, 40)}…")`);
+      ok(v.board && /Practice round/.test(v.msg), `D (Elimination): a knocked-out player gets the same cards to practise on ("${v.msg.slice(0, 40)}…")`);
       const pts0 = await D.host.evaluate(() => H.state.players.find(p => p.name === 'D-Browser').points);
       const mv = findMoves(await bp.evaluate(() => R.nums)); let sel = null;
       for (const m of mv) { if (sel !== m.a) await bp.keyboard.press(String(m.a + 1)); await bp.keyboard.press(opKey[m.op]); await bp.keyboard.press(String(m.b + 1)); sel = m.b; await sleep(70); }
       await sleep(600);
       const after = await bp.evaluate(() => document.getElementById('msg').textContent);
       const me = await D.host.evaluate(() => H.state.players.find(p => p.name === 'D-Browser'));
-      ok(/Practice/.test(after) && !me.solved && me.points === pts0 && me.out, `D (Elimination): making 24 in practice says so and doesn't count (still out, points unchanged)`);
+      ok(/practice/i.test(after) && !me.solved && me.points === pts0 && me.out, `D (Elimination): making 24 in practice says so and doesn't count (still out, points unchanged)`);
       await D.host.waitForFunction(() => H.state.phase !== 'playing', null, { timeout: 40000 });
       await sleep(800);
       const sub = await bp.evaluate(() => document.getElementById('resSub').textContent);
@@ -603,6 +612,7 @@ async function startServer() {
   await sleep(1500);
 
   /* ---------- Final checks ---------- */
+  for (const L of LOBBIES) ok((L.puzzleChecks || 0) >= ROUNDS, `${L.name}: every round, each pair had its own puzzle and both players in it got the same cards`);
   for (const L of LOBBIES) {
     for (const sp of L.sims) if ([...sp.codesSeen].some(c => c !== L.code)) fail(`${L.name}: ${sp.name} saw another class's game`);
     const st = await L.host.evaluate(() => ({ round: H.state.matchRound, n: H.state.players.length, ranks: [...document.querySelectorAll('#hScores .sb-rank')].map(e => e.textContent) }));

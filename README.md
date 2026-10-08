@@ -20,14 +20,16 @@ Open `public/index.html` in a browser. No server or internet needed.
 2. Up to 24 students open the game's website, type the code, pick an emoji and type their name.
 3. The teacher chooses the game mode, the number of cards (4 or 5) and, for a points game, the number of rounds (1–10), then presses **Start Match**.
 
-Each round, students race in pairs (plus one group of three if needed, shared around so it isn't always the same students) with the same cards. Rounds last 30 seconds and the next one starts by itself. Speed is timed on each student's own device, so a slow connection doesn't cost points.
+Each round, students race in pairs (plus one group of three if needed, shared around so it isn't always the same students) and each pair gets its own cards, so no one can copy a neighbour's answer. Rounds last 30 seconds and the next one starts by itself. Speed is timed on each student's own device, so a slow connection doesn't cost points.
 
 There are two game modes:
 
 - **Points:** faster answers score more points, with a bonus for finishing first in your group. Most points after the last round wins.
-- **Elimination:** everyone starts with 3, 4 or 5 lives (the host chooses). The first in each group to make 24 keeps their lives and everyone else in the group loses one. If nobody in a group makes 24, they all lose one. Players on 0 lives are out, but keep getting the same cards to practise on for fun. The last player standing wins.
+- **Elimination:** everyone starts with 3, 4 or 5 lives (the host chooses). The first in each group to make 24 keeps their lives and everyone else in the group loses one. If nobody in a group makes 24, they all lose one. Players on 0 lives are out, but keep getting cards to practise on for fun. The last player standing wins.
 
 Win your race three rounds in a row and you get to **steal**: pick another player and take 300 points from them (in Elimination, a life from someone with two or more). A small terminal-style window on every screen lists who beat whom in each race, and any steals, as they happen.
+
+The host screen counts each round in with 3-2-1 beeps, and players slide into their new places on the scoreboard as the scores change.
 
 Each player's emoji shows next to their name. It bounces when they win their race (or the match) and droops when they lose.
 

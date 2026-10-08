@@ -4,7 +4,6 @@
 
 const $=id=>document.getElementById(id);
 const socket=io();
-const SUITS=[{s:'♠',red:false},{s:'♥',red:true},{s:'♣',red:false},{s:'♦',red:true}];
 const H={state:null,deadline:0,tick:null,dealt:0,suits:null,prevPct:new Map(),notice:'',noticeAt:0,editing:null};
 
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -66,7 +65,7 @@ socket.on('progress',d=>{
   Object.assign(p,{layout:d.layout,sel:d.sel,lastMove:d.lastMove,moveSeq:d.moveSeq});
   renderRaces(s,null);
 });
-socket.on('round',r=>{H.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);H.deadline=performance.now()+r.countdownMs+r.limitMs});
+socket.on('round',r=>{H.deadline=performance.now()+r.countdownMs+r.limitMs;H.goAt=performance.now()+r.countdownMs;H.cdStep=r.countdownMs/3;H.cdRound=r.round;H.beeped=4});
 
 // Seconds left on the between-rounds countdown (never shows more than 3)
 const nextCount=at=>Math.max(1,Math.min(3,Math.ceil((at-performance.now())/1000)));
@@ -155,21 +154,19 @@ function renderGame(s){
   $('hStatus').textContent=(s.phase==='countdown'?'Get ready…':s.phase==='playing'?'Racing':s.phase==='final'?'Match over':'Round over')+
     (s.hold&&s.phase!=='final'?(s.phase==='result'?' · Paused':' · Pausing after this round'):'');
 
-  // The four cards everyone is racing (dealt in once per round)
-  if(s.nums&&H.dealt!==s.round){
-    H.dealt=s.round;if(!H.suits)H.suits=s.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
-    $('hCards').style.gridTemplateColumns=`repeat(${s.nums.length},clamp(56px,${s.nums.length>4?6.5:8}vw,120px))`;
-    $('hCards').innerHTML=s.nums.map((n,i)=>{const su=H.suits[i];return `<div class="slot"><div class="card deal${su.red?' red':''}" style="animation-delay:${i*0.09}s">`+
-      `<span class="corner tl">${n}<span class="s">${su.s}</span></span><div class="val">${n}</div><div class="suit-big">${su.s}</div>`+
-      `<span class="corner br">${n}<span class="s">${su.s}</span></span></div></div>`}).join('');
-  }
+  // No cards here: every pair has its own puzzle, so the projector shows the races and scores instead
 
   // Clock
   clearInterval(H.tick);
   if(s.phase==='countdown'||s.phase==='playing'){
-    const f=()=>{const left=Math.max(0,Math.ceil((H.deadline-performance.now())/1000));
-      const c=$('hClock');c.textContent=s.phase==='countdown'?'…':left;c.classList.toggle('warn',s.phase==='playing'&&left<=10)};
-    f();H.tick=setInterval(f,250);
+    // Countdown: 3, 2, 1 with a beep on each, then a higher beep as the round starts
+    const f=()=>{const now=performance.now(),left=Math.max(0,Math.ceil((H.deadline-now)/1000)),c=$('hClock');
+      const n=H.goAt&&H.cdRound===s.round&&now<H.goAt?Math.min(3,Math.ceil((H.goAt-now)/H.cdStep)):0;
+      if(s.phase==='countdown'&&n>0){c.textContent=n;if(n<H.beeped){H.beeped=n;SFX.beep('tick')}}
+      else if(s.phase==='countdown')c.textContent='…';
+      else{c.textContent=left;if(H.beeped>0&&H.cdRound===s.round){H.beeped=0;SFX.beep('go')}}
+      c.classList.toggle('warn',s.phase==='playing'&&left<=10)};
+    f();H.tick=setInterval(f,100);
   }else{$('hClock').textContent='0';$('hClock').classList.remove('warn')}
 
   // Banner
@@ -187,7 +184,7 @@ function renderGame(s){
     const out=isElim(s)&&res&&res.knockedOut&&res.knockedOut.length?`  ·  Out: ${listNames(res.knockedOut)}`:'';
     const stealers=s.players.filter(p=>p.canSteal).map(p=>p.name);
     const steal=stealers.length?`  ·  🔥 ${listNames(stealers)} ${stealers.length>1?'are':'is'} choosing who to steal from`:H.lastSteal&&H.lastSteal.round===s.round?`  ·  ${H.lastSteal.text}`:'';
-    $('hBanner').textContent=(f?`${n} of ${s.players.length} made 24 · Fastest: ${f.name} in ${f.time.toFixed(1)} s`:'Nobody made 24 this round')+out+(res&&res.solution?`  ·  One answer: ${res.solution} = 24`:'')+steal+(s.hold?'  ·  Paused':'');
+    $('hBanner').textContent=(f?`${n} of ${s.players.length} made 24 · Fastest: ${f.name} in ${f.time.toFixed(1)} s`:'Nobody made 24 this round')+out+steal+(s.hold?'  ·  Paused':'');
   }
 
   renderRaces(s,res);
@@ -280,6 +277,9 @@ function renderScores(s,rows){
   box.dataset.sig=sig;
   box.classList.toggle('compact',rows.length>(s.phase==='final'?12:10));
   const level=allTied(s);   // everyone level: no ranks (they'd all say "1=")
+  // Remember where each row was, so rows that change places can slide to their new spot
+  const oldTop=new Map([...box.querySelectorAll('.sb-row')].map(el=>[el.dataset.id,el.getBoundingClientRect().top]));
+  const oldOrder=[...oldTop.keys()];
   box.innerHTML=rows.map((p,i)=>{
     const same=q=>samePlace(s,q,p);
     const rank=rows.findIndex(same)+1,tied=rows.filter(same).length>1;
@@ -298,11 +298,43 @@ function renderScores(s,rows){
         :`<button class="bonk-btn" data-id="${esc(p.id)}" title="Bonk ${esc(p.name)}: take ${elim?'a life':'500 points'}" aria-label="Bonk ${esc(p.name)}"${elim&&p.out?' disabled':''}>Bonk</button></span>`)+
       bk.pop+`</div>`;
   }).join('');
+  shuffleRows(box,oldTop,oldOrder);
   // Grow (or shrink) the bars that changed
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     box.querySelectorAll('.sb-fill').forEach(f=>{f.style.width=f.dataset.to+'%';H.prevPct.set(f.dataset.id,+f.dataset.to)});
   }));
 }
+// Leaderboard shuffle: when players change places, each moved row slides from its old position
+// to its new one like a card being dealt (lifting slightly as it passes), with card flicks.
+function shuffleRows(box,oldTop,oldOrder){
+  const rowsNow=[...box.querySelectorAll('.sb-row')];
+  const newOrder=rowsNow.map(el=>el.dataset.id).filter(id=>oldTop.has(id));
+  if(!oldOrder.length||newOrder.join()===oldOrder.filter(id=>newOrder.includes(id)).join())return;   // nobody changed places
+  const moved=[];
+  rowsNow.forEach(el=>{
+    const before=oldTop.get(el.dataset.id);if(before==null)return;
+    const dy=before-el.getBoundingClientRect().top;if(Math.abs(dy)<2)return;
+    moved.push({el,dy});
+  });
+  if(!moved.length)return;
+  // Card flicks: one per moved row (up to three), a little apart, like a quick shuffle. In a busy
+  // round the order can change every few moments, so at most one burst every 0.6 seconds.
+  const now=performance.now();
+  if(!(now<(H.flickUntil||0))){H.flickUntil=now+600;moved.slice(0,3).forEach((m,i)=>setTimeout(()=>SFX.play('select'),i*90))}
+  H.shuffles=(H.shuffles||0)+1;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  moved.forEach(({el,dy},i)=>{
+    const up=dy>0;   // moving up the board: pass over the others
+    el.style.zIndex=up?3:1;
+    const a=el.animate([
+      {transform:`translateY(${dy}px)`},
+      {transform:`translateY(${dy*0.45}px) scale(${up?1.04:0.98}) rotate(${up?-0.8:0.6}deg)`,boxShadow:up?'0 8px 18px rgba(0,0,0,.25)':'0 0 0 rgba(0,0,0,0)',offset:0.5},
+      {transform:'none'}
+    ],{duration:700,delay:i*40,easing:'cubic-bezier(.3,.7,.25,1)',fill:'backwards'});
+    a.onfinish=()=>{el.style.zIndex=''};
+  });
+}
+
 // Bonk takes two presses so a slip of the mouse can't penalise anyone: the first turns the
 // button into "Sure?" for 3 seconds, the second does the bonk.
 // pointerdown (not click) so a redraw between press and release can't swallow it.
@@ -383,7 +415,9 @@ document.querySelectorAll('.menu-title').forEach(t=>{
 });
 document.addEventListener('click',closeMenus);
 document.querySelectorAll('[data-about]').forEach(b=>b.onclick=e=>{e.stopPropagation();closeMenus();show('aboutDlg')});
+$('soundLabel').textContent=`Sound: ${SFX.on?'On':'Off'}`;
 const ACTIONS={howto:()=>show('helpDlg'),
+  sound:()=>{SFX.setOn(!SFX.on);$('soundLabel').textContent=`Sound: ${SFX.on?'On':'Off'}`},
   fullscreen:()=>{(document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()).catch(()=>{})}};
 document.querySelectorAll('.menu-list button').forEach(b=>b.onclick=()=>{closeMenus();ACTIONS[b.dataset.act]()});
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>hide(b.dataset.close));

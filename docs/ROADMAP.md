@@ -83,21 +83,21 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Prompts** | **117** | | messages you've sent Claude so far |
-| **Energy** | **≈ 23.0 kWh** | 9.5–44.6 kWh | about 230 boils of a full electric kettle (95–446 boils) |
-| **Water** | **≈ 94 litres** | 9–183 litres | about one short shower |
-| **Cost** | **≈ A$6.85** | A$2.71–13.30 | energy ≈ A$6.49 plus water ≈ A$0.37, at Victorian household prices |
-| **Cost per prompt** | **≈ 5.9c** | 2.3–11.4c | average: total cost ÷ number of prompts |
+| **Prompts** | **127** | | messages you've sent Claude so far |
+| **Energy** | **≈ 24.8 kWh** | 10.2–48.2 kWh | about 248 boils of a full electric kettle (102–482 boils) |
+| **Water** | **≈ 102 litres** | 10–198 litres | about one short shower |
+| **Cost** | **≈ A$7.40** | A$2.92–14.36 | energy ≈ A$7.00 plus water ≈ A$0.40, at Victorian household prices |
+| **Cost per prompt** | **≈ 5.8c** | 2.3–11.3c | average: total cost ÷ number of prompts |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
-| Activity | Share | Energy |
-|---|---|---|
-| Reading and writing project files | 26% | ≈ 6.0 kWh |
-| Running code and tests | 34% | ≈ 7.8 kWh |
-| Claude's built-in instructions (re-read every step) | 21% | ≈ 4.8 kWh |
-| Conversation and replies | 12% | ≈ 2.8 kWh |
-| Syncing files to the computer | 6% | ≈ 1.4 kWh |
+| Activity | Share |
+|---|---|
+| Reading and writing project files | 26% |
+| Running code and tests | 35% |
+| Claude's built-in instructions (re-read every step) | 21% |
+| Conversation and replies | 12% |
+| Syncing files to the computer | 6% |
 
 **How this is estimated:** Anthropic doesn't publish energy or water figures for Claude, so these are outside estimates, not measurements. Treat them as an order of magnitude.
 
@@ -117,6 +117,11 @@ Hausfather, Z. (2026, August 12). The real energy use of agentic AI. *The Climat
 Li, P., Yang, J., Islam, M. A., & Ren, S. (2023). *Making AI less "thirsty": Uncovering and addressing the secret water footprint of AI models* (arXiv:2304.03271). arXiv. https://doi.org/10.48550/arXiv.2304.03271
 
 ## Change log
+- **2026-10-09** Claude usage: the breakdown by activity (project files, running code and tests, and so on) now shows each as a percentage of the total instead of kWh.
+- **2026-10-09** Each pair (and the group of three) now gets its own puzzle every round, so students can't copy a neighbour's answer; no two groups share a puzzle. The projector no longer shows cards. Each student's results show an answer to their own cards. Class test re-run with a new check for this: 69 checks passed, none failed.
+- **2026-10-08** Player screen: the messages above the cards are now short statements ("Go!", "You made 24!", "Amira made 24 first. Keep going!", "That’s 22, not 24"). Points and answers still show in the results window.
+- **2026-10-08** The 3-2-1 countdown before each round now takes 3.75 seconds. The host screen counts 3, 2, 1 in its clock with a beep on each number and a higher beep as the round starts (Sound on/off in the host's Game menu). When players change places on the host scoreboard, the rows slide into their new order with card flick sounds.
+- **2026-10-08** Roadmap page: the change log now shows the latest three entries, with a button to show all of them (or fewer again).
 - **2026-10-08** Class test extended for steals and the terminal window (two more small classes, E and F) and re-run: 67 checks passed, none failed.
 - **2026-10-08** Fixed: several tabs in one browser are separate players again (the rejoin token is now per tab), so the game can be tried out in one browser. Reloading or a dropped connection still rejoins automatically.
 - **2026-10-08** New: a small early-2000s terminal window on every player's screen and on the projector lists who beat whom as each race finishes ("Amira beats Ben and Chloe" for a group of three) and every steal.
@@ -129,7 +134,7 @@ Li, P., Yang, J., Islam, M. A., & Ren, S. (2023). *Making AI less "thirsty": Unc
 - **2026-10-07** Fixed (found by the class test): pressing Escape didn't close Help when it was open on top of the round results, which left that player's keyboard stuck for the rest of the match.
 - **2026-10-07** Class test added (`npm run test:class`, in `tests/`): plays two classes of 24 at the same time for 10 rounds and checks every round's groups, points and scores, plus dropped connections, page reloads, a second tab, outsiders trying to join, Pause/Resume, two-press Bonk, the player help, the Host a game link and hidden ranks. It ends with a pass/fail report. First full run: 43 checks passed, none failed; the server used about 1% CPU and 85 MB.
 - **2026-10-07** Built: the host can pause after the current round (Pause After This Round, or Pause on the results) and press Resume or Start Next Round; players and the projector show that it's paused. The player help screen is rewritten (joining with the code and emoji, each round, both game modes, giving up, keyboard). The home page has a "Host a game" link. Ranks are hidden while everyone is level, so nobody shows as "1=" at the start. All ready to test.
-- **2026-10-07** Claude usage updated (117 prompts). Prompts 102–104 were condensed out of the conversation record, so they're counted at the average cost per prompt.
+- **2026-10-07** Claude usage updated (127 prompts). Prompts 102–104 were condensed out of the conversation record, so they're counted at the average cost per prompt.
 - **2026-10-07** Built: a player whose connection drops (or who reloads the page) now rejoins automatically and keeps their seat, score and lives, using a private token saved on their device. A second tab on the same device takes over the seat. Bonk on the host screen now needs a second press ("Sure?") within 3 seconds. Both ready to test.
 - **2026-10-07** Added Stage 7: Suggested improvements, with 11 changes from the design review and a final criterion that the game has been tested with every change implemented. Real-world testing is now Stage 8.
 - **2026-10-07** Roadmap page: on the cost of each prompt chart, the dashed average line now runs across the whole chart and shows the average of every prompt so far (the same figure as the cost per prompt).
