@@ -16,8 +16,29 @@ const R={
 };
 
 /* ---------- Helpers ---------- */
+// Fit the board to the screen: shrink the cards until the cards, buttons and race window all fit
+// in the visible area, so nobody has to scroll to play (short laptop screens, phones).
+function fitBoard(){
+  const board=$('board'),cards=$('cards'),felt=$('felt');
+  if(board.hidden||!cards.children.length)return;
+  cards.style.removeProperty('--fit-w');
+  const cs=getComputedStyle(felt),avail=felt.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  let last=Infinity,lastW='';
+  for(let i=0;i<5;i++){
+    const over=board.scrollHeight-avail;
+    if(over<=1)break;
+    // Shrinking didn't help (something beside the cards is the tallest thing): undo the last step and stop
+    if(over>=last-1){if(lastW)cards.style.setProperty('--fit-w',lastW);else cards.style.removeProperty('--fit-w');break}
+    last=over;lastW=cards.style.getPropertyValue('--fit-w');
+    const r=cards.getBoundingClientRect();
+    cards.style.setProperty('--fit-w',Math.max(180,Math.floor(r.width*(1-over/r.height)))+'px');
+  }
+}
+if(window.ResizeObserver){const ro=new ResizeObserver(()=>fitBoard());ro.observe(document.getElementById('felt'));ro.observe(document.getElementById('oppSide'))}
+else addEventListener('resize',fitBoard);
 function showScreen(name){
   for(const id of ['joinPanel','lobbyPanel','countdown','board'])$(id).hidden=(id!==name);
+  if(name==='board')requestAnimationFrame(fitBoard);
 }
 function setMsg(t,cls){const m=$('msg');m.textContent=t;m.className=cls||''}
 function esc(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -245,7 +266,7 @@ function render(){
   if(s.phase==='playing'&&me.gaveUp)setMsg('You gave up','bad');
 
   if((s.phase==='result'||s.phase==='final')&&s.result&&R.shownResultRound!==s.round){R.shownResultRound=s.round;showResult(s.result,s)}
-  renderTerm($('termBody'),s,matchMedia('(max-width:700px)').matches?1:4);
+  renderTerm($('termBody'),s,matchMedia('(max-width:700px)').matches?1:matchMedia('(max-height:800px)').matches?2:4);
   renderSteal(s,me);
 }
 
