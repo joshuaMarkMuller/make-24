@@ -4,6 +4,7 @@ node_modules/
 Thumbs.db
 *.log
 
-# Project roadmap (kept locally, not published)
+# Project roadmap and handover notes (kept locally, not published)
 /ROADMAP.md
 docs/ROADMAP.md
+docs/HANDOVER.md

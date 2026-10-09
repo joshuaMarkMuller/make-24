@@ -7,9 +7,9 @@
 | 3 | 10-round match | Complete |
 | 4 | Whole class (up to 24) | Complete |
 | 5 | Sound effects and visuals | Complete |
-| 6 | Online with lobby codes | In progress |
+| 6 | Online with lobby codes | In progress (3 of 4) |
 | 7 | Suggested improvements | Complete |
-| 8 | Real-world testing | Not started |
+| 8 | Real-world testing | In progress (13 of 17) |
 
 ## Stage 1: Projector game
 - [x] HTML application that works in my browser
@@ -42,7 +42,7 @@
 - [x] The game is hosted online through a paid hosting service
 - [x] Others join through a lobby code
 - [ ] I have tested whether multiple games can be hosted at the same time, and whether any issues arise from that
-- [ ] I have tested whether the game is blocked on my school's Wi-Fi
+- [x] I have tested whether the game is blocked on my school's Wi-Fi
 
 ## Stage 7: Suggested improvements
 - [x] A player whose connection drops rejoins automatically, keeping their seat, score and lives
@@ -59,23 +59,23 @@
 - [x] The game has been tested with every change implemented
 
 ## Stage 8: Real-world testing
-- [ ] I have tested the game with friends or colleagues
-- [ ] I have tested the game with a full class
-- [ ] Students can join on the devices they'll actually use (school laptops or Chromebooks, iPhones, Android phones and iPads), and the join screen and cards fit on each
-- [ ] The host screen is readable from the back of the room on the projector, including the lobby code, scoreboard and hearts
-- [ ] A full class can join within 2 minutes using only the code on the projector
-- [ ] A full match runs on the school Wi-Fi with no lag between tapping a card and the opponent's face-down cards moving
+- [x] I have tested the game with friends or colleagues
+- [x] I have tested the game with a full class
+- [x] Students can join on the devices they'll actually use (school laptops or Chromebooks, iPhones, Android phones and iPads), and the join screen and cards fit on each
+- [x] The host screen is readable from the back of the room on the projector, including the lobby code, scoreboard and hearts
+- [x] A full class can join within 2 minutes using only the code on the projector
+- [x] A full match runs on the school Wi-Fi with no lag between tapping a card and the opponent's face-down cards moving
 - [ ] A student whose phone locks or loses Wi-Fi can rejoin with the same name and carries on with their score or lives
 - [ ] The host screen survives a refresh mid-match and takes back the same lobby
-- [ ] Two classes can play at the same time on the live site without problems
+- [x] Two classes can play at the same time on the live site without problems
 - [ ] A full Points match and a full Elimination match both run from start to podium without needing a refresh
-- [ ] Sounds play on student devices, and the Sound off setting works
-- [ ] Students understand how to play without the teacher explaining it more than once
-- [ ] The 30-second time limit feels fair for most of the class, with most pairs finishing in time
-- [ ] Renaming, Bonk and End Game all work during a real lesson
-- [ ] The lobby closing stops another class from joining with a shared code
+- [x] Sounds play on student devices, and the Sound off setting works
+- [x] Students understand how to play without the teacher explaining it more than once
+- [x] The 30-second time limit feels fair for most of the class, with most pairs finishing in time
+- [x] Renaming, Bonk and End Game all work during a real lesson
+- [x] The lobby closing stops another class from joining with a shared code
 - [ ] Students can't find a way to cheat (for example, two devices under one name, or refreshing to dodge a lost life)
-- [ ] Quick feedback is collected from students (fun, too hard or too easy, anything confusing) and any bugs are noted to fix
+- [x] Quick feedback is collected from students (fun, too hard or too easy, anything confusing) and any bugs are noted to fix
 
 ## Claude usage (energy and water)
 
@@ -83,11 +83,11 @@ Estimated electricity and water used by Claude building this project so far. Upd
 
 | | Estimate | Plausible range | For scale |
 |---|---|---|---|
-| **Prompts** | **129** | | messages you've sent Claude so far |
-| **Energy** | **≈ 25.6 kWh** | 10.5–49.6 kWh | about 256 boils of a full electric kettle (105–496 boils) |
-| **Water** | **≈ 105 litres** | 11–203 litres | about one short shower |
-| **Cost** | **≈ A$7.62** | A$3.01–14.79 | energy ≈ A$7.21 plus water ≈ A$0.41, at Victorian household prices |
-| **Cost per prompt** | **≈ 5.9c** | 2.3–11.5c | average: total cost ÷ number of prompts |
+| **Prompts** | **132** | | messages you've sent Claude so far |
+| **Energy** | **≈ 25.9 kWh** | 10.7–50.3 kWh | about 259 boils of a full electric kettle (107–503 boils) |
+| **Water** | **≈ 106 litres** | 11–206 litres | about one short shower |
+| **Cost** | **≈ A$7.73** | A$3.05–15.00 | energy ≈ A$7.31 plus water ≈ A$0.41, at Victorian household prices |
+| **Cost per prompt** | **≈ 5.9c** | 2.3–11.4c | average: total cost ÷ number of prompts |
 
 Where the energy went (approximate share of the estimate; water follows the same split):
 
@@ -117,6 +117,8 @@ Hausfather, Z. (2026, August 12). The real energy use of agentic AI. *The Climat
 Li, P., Yang, J., Islam, M. A., & Ren, S. (2023). *Making AI less "thirsty": Uncovering and addressing the secret water footprint of AI models* (arXiv:2304.03271). arXiv. https://doi.org/10.48550/arXiv.2304.03271
 
 ## Change log
+- **2026-10-09** Stage 6: tested and confirmed the game isn't blocked on the school's Wi-Fi.
+- **2026-10-09** Stage 8 (Real-world testing): 13 criteria ticked after testing with a class. Still to do: rejoining after a phone locks or loses Wi-Fi, the host screen surviving a refresh mid-match, checking students can't cheat, and a full Points match and a full Elimination match running to the podium without a refresh.
 - **2026-10-09** Player screen fits without scrolling: the cards shrink to fit the screen's height so the cards, operation buttons, Undo/Reset/Give Up and the race window are all visible on school laptops (1366×768 and 1280×720 with the browser's bars) and phones. Card numbers now scale with the card; phones show the cards in one row; short screens show a 2-line race window and the opponent's face-down cards in one row.
 - **2026-10-09** Claude usage: the breakdown by activity (project files, running code and tests, and so on) now shows each as a percentage of the total instead of kWh.
 - **2026-10-09** Each pair (and the group of three) now gets its own puzzle every round, so students can't copy a neighbour's answer; no two groups share a puzzle. The projector no longer shows cards. Each student's results show an answer to their own cards. Class test re-run with a new check for this: 69 checks passed, none failed.
@@ -135,7 +137,7 @@ Li, P., Yang, J., Islam, M. A., & Ren, S. (2023). *Making AI less "thirsty": Unc
 - **2026-10-07** Fixed (found by the class test): pressing Escape didn't close Help when it was open on top of the round results, which left that player's keyboard stuck for the rest of the match.
 - **2026-10-07** Class test added (`npm run test:class`, in `tests/`): plays two classes of 24 at the same time for 10 rounds and checks every round's groups, points and scores, plus dropped connections, page reloads, a second tab, outsiders trying to join, Pause/Resume, two-press Bonk, the player help, the Host a game link and hidden ranks. It ends with a pass/fail report. First full run: 43 checks passed, none failed; the server used about 1% CPU and 85 MB.
 - **2026-10-07** Built: the host can pause after the current round (Pause After This Round, or Pause on the results) and press Resume or Start Next Round; players and the projector show that it's paused. The player help screen is rewritten (joining with the code and emoji, each round, both game modes, giving up, keyboard). The home page has a "Host a game" link. Ranks are hidden while everyone is level, so nobody shows as "1=" at the start. All ready to test.
-- **2026-10-07** Claude usage updated (129 prompts). Prompts 102–104 were condensed out of the conversation record, so they're counted at the average cost per prompt.
+- **2026-10-07** Claude usage updated (132 prompts). Prompts 102–104 were condensed out of the conversation record, so they're counted at the average cost per prompt.
 - **2026-10-07** Built: a player whose connection drops (or who reloads the page) now rejoins automatically and keeps their seat, score and lives, using a private token saved on their device. A second tab on the same device takes over the seat. Bonk on the host screen now needs a second press ("Sure?") within 3 seconds. Both ready to test.
 - **2026-10-07** Added Stage 7: Suggested improvements, with 11 changes from the design review and a final criterion that the game has been tested with every change implemented. Real-world testing is now Stage 8.
 - **2026-10-07** Roadmap page: on the cost of each prompt chart, the dashed average line now runs across the whole chart and shows the average of every prompt so far (the same figure as the cost per prompt).
