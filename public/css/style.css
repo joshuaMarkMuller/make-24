@@ -652,3 +652,26 @@ a.xp-btn{display:inline-block;text-decoration:none;color:inherit;text-align:cent
   .opp-col .opp-cards,.opp-col.multi .opp-cards{grid-template-columns:repeat(4,clamp(26px,2.6vw,38px));gap:6px}
   .opp-col .opp-cards.n5,.opp-col.multi .opp-cards.n5{grid-template-columns:repeat(5,clamp(22px,2.2vw,32px));gap:5px}
 }
+
+/* Warm-up: cards to play beside the waiting room while the host gets ready (no race window).
+   Laptops and wider: the cards sit to the right of the waiting room.
+   Phones and narrow windows: the cards go underneath, with a smaller waiting room so they get the room. */
+.felt.warm .term-slot{display:none}
+.felt.warm #board{gap:clamp(8px,1.8vh,20px)}
+@media (min-width:900px){
+  .felt.warm{flex-direction:row;align-items:center;justify-content:center;gap:clamp(16px,2.5vw,40px)}
+  .felt.warm #lobbyPanel{flex:0 0 auto;width:clamp(340px,34vw,480px);align-self:center}
+  .felt.warm #board{flex:1 1 0;min-width:0;max-width:820px}
+  .felt.warm .players{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));max-height:max(110px,min(340px,calc(100vh - 390px)))}
+}
+@media (max-width:899.98px){
+  .felt.warm{gap:10px;justify-content:flex-start}
+  .felt.warm #lobbyPanel .dialog-body{padding:8px 14px 10px}
+  .felt.warm #lobbyPanel h2{font-size:clamp(17px,1.8vw,22px);margin:0 0 2px}
+  .felt.warm .group-preview{margin:0 0 4px}
+  .felt.warm .players{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:62px;overflow-y:auto}
+  .felt.warm .players li{padding:2px 8px;font-size:14px}
+  .felt.warm .match-len{margin:4px 0}
+  .felt.warm .match-len label,.felt.warm #roundsSel{display:none}
+  .felt.warm #lobbyMsg{margin:2px 0 0}
+}

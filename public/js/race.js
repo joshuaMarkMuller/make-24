@@ -22,7 +22,10 @@ function fitBoard(){
   const board=$('board'),cards=$('cards'),felt=$('felt');
   if(board.hidden||!cards.children.length)return;
   cards.style.removeProperty('--fit-w');
-  const cs=getComputedStyle(felt),avail=felt.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  const cs=getComputedStyle(felt);
+  let avail=felt.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  // Warm-up on a narrow screen: the waiting room sits above the cards and takes some of the height
+  if(R.warm&&!$('lobbyPanel').hidden&&cs.flexDirection==='column')avail-=$('lobbyPanel').offsetHeight+(parseFloat(cs.rowGap)||0);
   let last=Infinity,lastW='';
   for(let i=0;i<5;i++){
     const over=board.scrollHeight-avail;
@@ -37,8 +40,8 @@ function fitBoard(){
 if(window.ResizeObserver){const ro=new ResizeObserver(()=>fitBoard());ro.observe(document.getElementById('felt'));ro.observe(document.getElementById('oppSide'))}
 else addEventListener('resize',fitBoard);
 function showScreen(name){
-  for(const id of ['joinPanel','lobbyPanel','countdown','board'])$(id).hidden=(id!==name);
-  if(name==='board')requestAnimationFrame(fitBoard);
+  for(const id of ['joinPanel','lobbyPanel','countdown','board'])$(id).hidden=(id!==name)&&!(id==='board'&&name==='lobbyPanel'&&R.warm);
+  if(name==='board'||(name==='lobbyPanel'&&R.warm))requestAnimationFrame(fitBoard);
 }
 function setMsg(t,cls){const m=$('msg');m.textContent=t;m.className=cls||''}
 function esc(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -85,7 +88,7 @@ function join(code,name,emoji,auto){
   socket.emit('join',{code,name,emoji,token:TOKEN},res=>{
     if(!res||!res.ok){
       R.joined=null;R.me=null;R.offline=false;try{sessionStorage.removeItem('make24-auto')}catch{}
-      netBanner(false);showScreen('joinPanel');hide('resultDlg');stopCascade();stopTimer();
+      stopWarm();netBanner(false);showScreen('joinPanel');hide('resultDlg');stopCascade();stopTimer();
       $('joinMsg').textContent=(auto?'Couldn’t rejoin: ':'')+(res?res.error:'Something went wrong. Try again.');return}
     $('joinMsg').textContent='';
     R.joined={code:res.code,name:res.name,emoji:res.emoji};R.offline=false;
@@ -125,7 +128,7 @@ socket.on('connect',()=>{
 socket.on('disconnect',reason=>{
   if(!R.joined)return;
   if(reason==='io server disconnect'){   // this device rejoined from another tab, which now has the seat
-    R.joined=null;R.me=null;R.offline=false;netBanner(false);stopTimer();hide('resultDlg');stopCascade();showScreen('joinPanel');
+    R.joined=null;R.me=null;R.offline=false;stopWarm();netBanner(false);stopTimer();hide('resultDlg');stopCascade();showScreen('joinPanel');
     try{sessionStorage.removeItem('make24-auto')}catch{}
     $('joinMsg').textContent='You’re playing in another tab or window now. Close this one.';$('status').textContent='Not connected';return}
   R.offline=true;R.sel=null;R.op=null;if(R.slots.length)renderCards();
@@ -147,6 +150,7 @@ socket.on('state',s=>{R.state=s;R.nextAt=s.nextInMs!=null?performance.now()+s.ne
 socket.on('renamed',name=>{R.me=name;$('youPanel').textContent=`You: ${R.emoji||''} ${name}`;R.notice=`The host changed your name to ${name}.`;R.noticeAt=Date.now();render()});
 socket.on('round',r=>{
   // My cards for this round (each pair has its own); suits are just for looks
+  stopWarm();
   R.nums=r.nums;R.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);R.boardRound=r.round;R.pendingSubmit=null;
   clearTimeout(R.wrongTimer);R.wrongIdx=null;clearTimeout(R.heartTimer);$('heartLoss').hidden=true;
   resetBoard();R.locked=true;hide('resultDlg');$('stealNote').hidden=true;$('stealBox').hidden=true;stopCascade();clearOpps();clearInterval(R.nextTick);SFX.stop('cascade');
@@ -176,7 +180,7 @@ function catchUp(){
   if(s.phase!=='playing'||!me||(me.group===null&&!practising(s,me))||R.boardRound===s.round)return;
   const myG=me.group!==null?s.groups.find(g=>g.id===me.group):null,nums=myG?myG.nums:s.practiceNums;   // each pair has its own cards
   if(!nums)return;
-  R.practice=practising(s,me);
+  R.practice=practising(s,me);stopWarm();
   R.nums=nums;R.suits=nums.map(()=>SUITS[Math.floor(Math.random()*4)]);R.boardRound=s.round;R.pendingSubmit=null;
   clearTimeout(R.wrongTimer);R.wrongIdx=null;resetBoard();hide('resultDlg');stopCascade();clearOpps();clearInterval(R.nextTick);
   R.deadline=performance.now()+(s.timeLeftMs||0);R.limitMs=s.limitMs;
@@ -213,10 +217,12 @@ function render(){
 
   const sittingOut=(s.phase==='countdown'||s.phase==='playing')&&me.group===null&&!practising(s,me);
   if(s.phase==='lobby'||sittingOut){
-    stopTimer();showScreen('lobbyPanel');if(!sittingOut){hide('resultDlg');stopCascade()}
+    stopTimer();
+    if(sittingOut)stopWarm();else{hide('resultDlg');stopCascade();startWarm(s)}   // waiting for the host: warm up on cards below
+    showScreen('lobbyPanel');
     const list=$('playerList'),sig=s.players.map(p=>p.id+p.name+p.emoji+emojiMood(s,p.id)).join('|');
-    if(list.dataset.sig!==sig)list.dataset.sig=sig,list.innerHTML=s.players.map(p=>`<li><span>${emojiTag(s,p)}${esc(p.name)}${p.id===R.myId?'<span class="you">(you)</span>':''}</span>`+
-      `</li>`).join('')||'<li class="empty">Nobody has joined yet.</li>';
+    if(list.dataset.sig!==sig){list.dataset.sig=sig;list.innerHTML=s.players.map(p=>`<li><span>${emojiTag(s,p)}${esc(p.name)}${p.id===R.myId?'<span class="you">(you)</span>':''}</span>`+
+      `</li>`).join('')||'<li class="empty">Nobody has joined yet.</li>';if(R.warm)requestAnimationFrame(fitBoard)}
     $('roundsSel').value=String(s.matchRounds);$('roundsSel').disabled=true;$('roundsSel').hidden=isElim(s);
     $('roundsNote').textContent=isElim(s)?`Elimination: everyone has ${s.maxLives} lives, last one standing wins · ${s.cardCount}-card game.`:`Chosen by the host · ${s.cardCount}-card game.`;
     $('startBtn').hidden=true;
@@ -238,6 +244,7 @@ function render(){
     }
     return;
   }
+  stopWarm();
 
   // I made 24: show my points straight away, then wait for everyone else
   if(s.phase==='playing'&&me.solved&&R.solvedRound!==s.round){
@@ -495,6 +502,7 @@ function renderCards(anim){
 }
 function canPlay(){
   const s=R.state,me=s&&s.players.find(p=>p.id===R.myId);
+  if(R.warm)return !R.locked&&!!s&&s.phase==='lobby'&&!!me;   // warm-up in the waiting room
   if(R.practice)return !R.locked&&!R.offline&&s&&s.phase==='playing'&&!!me;   // knocked out: just for fun
   const g=me&&me.group!==null?s.groups.find(x=>x.id===me.group):null;
   return !R.locked&&!R.offline&&s&&s.phase==='playing'&&me&&!me.gaveUp&&!me.solved&&!me.beaten&&g;
@@ -526,7 +534,8 @@ function clickCard(i){
   if(left===1)R.sel=null;
   sendProgress({move:{a:from,b:i}});
   if(left===1){
-    if(v===24&&R.practice){
+    if(v===24&&R.warm)warmWin();
+    else if(v===24&&R.practice){
       R.locked=true;R.sel=null;setMsg('You made 24! (practice)','good');runCascade(null);
     }else if(v===24){
       R.locked=true;R.sel=null;setMsg('Checking…');
@@ -550,12 +559,13 @@ function submitMoves(moves){
 // deal back in so the player can try again straight away (no score lost).
 const WRONG_MS=900;
 function wrongAnswer(i,v){
-  const round=R.state&&R.state.round;
+  const round=R.state&&R.state.round,warmSeq=R.warm?R.warmSeq:0;
   R.locked=true;R.sel=null;R.op=null;R.wrongIdx=i;
   setMsg(`That’s ${fmtText(v)}, not 24`,'bad');
   clearTimeout(R.wrongTimer);
   R.wrongTimer=setTimeout(()=>{
     R.wrongIdx=null;
+    if(warmSeq){if(R.warm&&R.warmSeq===warmSeq){resetBoard();R.locked=false;renderCards('deal')}return}
     const s=R.state;
     if(!s||s.round!==round||s.phase!=='playing'||R.timedOutRound===s.round)return;   // round already over
     resetBoard();R.locked=false;sendProgress({kind:'reset'});renderCards('deal');
@@ -578,14 +588,14 @@ function heartLoss(s,me,winner){
 function pickOp(op){if(!canPlay())return;if(R.sel===null){setMsg('Pick a card first','bad');return}R.op=op;renderCards()}
 function undo(){if(!canPlay()||!R.history.length)return;R.slots=R.history.pop();R.moves.pop();R.sel=null;R.op=null;sendProgress({kind:'undo'});setMsg('Undone');renderCards()}
 function reset(){if(!canPlay())return;resetBoard();sendProgress({kind:'reset'});setMsg('Reset');renderCards('deal')}
-function giveUp(){if(!canPlay())return;R.locked=true;R.sel=null;if(R.practice){setMsg('Practice over');renderCards();return}sendProgress();socket.emit('giveUp');renderCards()}
+function giveUp(){if(!canPlay())return;R.locked=true;R.sel=null;if(R.warm){warmGiveUp();return}if(R.practice){setMsg('Practice over');renderCards();return}sendProgress();socket.emit('giveUp');renderCards()}
 
 /* ---------- Opponents' face-down cards ----------
  * One small panel per opponent (two when you are in a group of three). We only ever
  * learn the shape of their board (which slots hold cards, which is selected, and
  * each move), never the numbers.
  */
-function sendProgress(extra){if(R.practice)return;socket.emit('progress',{layout:R.slots.map(Boolean),sel:R.sel,...(extra||{})})}
+function sendProgress(extra){if(R.practice||R.warm)return;socket.emit('progress',{layout:R.slots.map(Boolean),sel:R.sel,...(extra||{})})}
 const OPP=new Map();   // opponent id → { el, seq, layout, animating, pending }
 const reduceMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 function clearOpps(){OPP.clear();$('oppSide').innerHTML=''}
@@ -652,6 +662,43 @@ function applySel(o,opp,oppWon,layout){
     c.classList.toggle('sel',opp.sel===i&&!opp.gaveUp&&!oppWon);
     c.classList.toggle('win',oppWon&&layout.filter(Boolean).length===1&&!!layout[i]);
   });
+}
+
+/* ---------- Warm-up: cards to play in the waiting room ----------
+ * While waiting for the host, the same cards, buttons and keys as a race sit to the right of the
+ * waiting room (underneath on phones), using the host's card setting (4 or 5). There's no time limit and no score,
+ * and nothing is sent to the server. Making 24 deals a different set; Give Up shows one
+ * answer and deals a different set. The warm-up stops as soon as the match starts.
+ */
+const WARM_WIN_MS=1200,WARM_ANSWER_MS=3000;
+function startWarm(s){
+  const n=s.cardCount||4;
+  if(R.warm&&R.warmCount===n)return;          // already warming up with the right number of cards
+  const was=R.warm;R.warm=true;
+  if(!was){clearOpps();R.practice=false;R.pendingSubmit=null;R.boardRound=null;$('felt').classList.add('warm');setMsg('Warm-up');
+    $('timer').textContent='Time: no limit';$('timer').classList.remove('warn')}
+  warmDeal(n);
+}
+function warmDeal(n){
+  clearTimeout(R.warmTimer);clearTimeout(R.wrongTimer);R.wrongIdx=null;
+  const p=makePuzzle(n||R.warmCount||4);
+  R.warmCount=p.nums.length;R.warmSeq=(R.warmSeq||0)+1;R.warmSol=p.sols[0]?p.sols[0].e:'';
+  R.nums=p.nums;R.suits=p.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
+  resetBoard();R.locked=false;
+  renderCards('deal');requestAnimationFrame(fitBoard);
+}
+function warmWin(){
+  R.locked=true;R.sel=null;R.op=null;setMsg('You made 24!','good');
+  clearTimeout(R.warmTimer);R.warmTimer=setTimeout(()=>{if(R.warm){warmDeal();setMsg('New cards')}},WARM_WIN_MS);
+}
+function warmGiveUp(){
+  R.op=null;setMsg(R.warmSol?`${R.warmSol} = 24`:'New cards');renderCards();
+  clearTimeout(R.warmTimer);R.warmTimer=setTimeout(()=>{if(R.warm){warmDeal();setMsg('New cards')}},WARM_ANSWER_MS);
+}
+function stopWarm(){
+  if(!R.warm)return;
+  R.warm=false;R.warmCount=0;clearTimeout(R.warmTimer);clearTimeout(R.wrongTimer);R.wrongIdx=null;R.locked=true;R.sel=null;R.op=null;
+  $('felt').classList.remove('warm');$('board').hidden=true;$('cards').style.removeProperty('--fit-w');
 }
 
 /* ---------- Timer: counts down the round's time limit ---------- */
