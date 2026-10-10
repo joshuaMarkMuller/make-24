@@ -63,14 +63,14 @@ const fail = m => { issues.push(m); log('FAIL', m); };
 const ok = (cond, m) => { if (cond) { passes.push(m); log('pass', m); } else fail(m); };
 const shot = async (p, name) => { if (SHOTS) await p.screenshot({ path: path.join(SHOTS, name + '.png') }).catch(() => {}); };
 
-// Every way to make 24 from these cards, using the game's rules (whole numbers only)
+// Every way to make 24 from these cards, using the game's rules (whole numbers, never negative)
 function findMoves(nums) {
   function rec(sl, moves) {
     const idx = sl.map((v, i) => v == null ? -1 : i).filter(i => i >= 0);
     if (idx.length === 1) return sl[idx[0]] === 24 ? moves : null;
     for (const a of idx) for (const b of idx) { if (a === b) continue; for (const op of ['+', '−', '×', '÷']) {
       const x = sl[a], y = sl[b]; let v;
-      if (op === '+') v = x + y; else if (op === '−') v = x - y; else if (op === '×') v = x * y; else { if (y === 0 || x % y) continue; v = x / y; }
+      if (op === '+') v = x + y; else if (op === '−') { v = x - y; if (v < 0) continue; } else if (op === '×') v = x * y; else { if (y === 0 || x % y) continue; v = x / y; }
       const n = [...sl]; n[b] = v; n[a] = null; const r = rec(n, [...moves, { a, b, op }]); if (r) return r; } }
     return null;
   }

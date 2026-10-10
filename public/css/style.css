@@ -675,3 +675,10 @@ a.xp-btn{display:inline-block;text-decoration:none;color:inherit;text-align:cent
   .felt.warm .match-len label,.felt.warm #roundsSel{display:none}
   .felt.warm #lobbyMsg{margin:2px 0 0}
 }
+
+/* A move that isn't allowed (it would give a negative number): both cards give a small shake */
+.card.nope{animation:card-nope .36s ease-in-out}
+@keyframes card-nope{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+.card.sel.nope{animation-name:card-nope-sel}
+@keyframes card-nope-sel{0%,100%{transform:translate(0,-3px)}20%{transform:translate(-5px,-3px)}40%{transform:translate(5px,-3px)}60%{transform:translate(-3px,-3px)}80%{transform:translate(3px,-3px)}}
+@media (prefers-reduced-motion:reduce){.card.nope,.card.sel.nope{animation:none}}

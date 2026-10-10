@@ -90,7 +90,7 @@ function joinAddresses(s){
 
 function renderLobby(s){
   showView('hostLobby');clearInterval(H.tick);
-  $('hStatus').textContent=`Waiting room · ${isElim(s)?`Elimination, ${s.maxLives} lives`:`${s.matchRounds}-round match`} · ${s.cardCount} cards`;
+  $('hStatus').textContent=`Waiting room · ${isElim(s)?`Elimination, ${s.maxLives} lives`:`${s.matchRounds}-round match`} · ${s.cardCount} cards · ${s.difficulty==='hard'?'Hard':'Easy'}`;
   $('lobbyCode').textContent=s.code;
   $('joinUrl').innerHTML=joinAddresses(s).map(u=>`<span>${esc(u)}</span>`).join('');
   $('hCount').textContent=s.players.length?`${s.players.length} of ${s.maxPlayers} players have joined`:'No players yet';
@@ -101,7 +101,8 @@ function renderLobby(s){
   $('hModeNote').textContent=isElim(s)
     ?`Everyone starts with ${s.maxLives} lives.`+' Lose your race (or nobody in your group makes 24) and you lose a life. Last player standing wins.'
     :'Every card must be used to make 24.';
-  $('hCardCount').value=String(s.cardCount);
+  $('hModeNote').textContent+=s.difficulty==='hard'?' Hard: some puzzles need brackets.':' Easy: every puzzle can be done without brackets.';
+  $('hCardCount').value=String(s.cardCount);$('hDifficulty').value=s.difficulty||'easy';
   $('hStart').disabled=s.players.length<2;
   const recent=H.notice&&Date.now()-H.noticeAt<6000?H.notice:'';
   $('hLobbyMsg').textContent=recent||(s.players.length<2?'Waiting for players to join…':'Press Start Match when everyone has joined.');
@@ -407,6 +408,7 @@ $('hRounds').onchange=()=>socket.emit('setRounds',+$('hRounds').value);
 $('hMode').onchange=()=>socket.emit('setMode',$('hMode').value);
 $('hLives').onchange=()=>socket.emit('setLives',+$('hLives').value);
 $('hCardCount').onchange=()=>socket.emit('setCards',+$('hCardCount').value);
+$('hDifficulty').onchange=()=>socket.emit('setDifficulty',$('hDifficulty').value);
 
 /* ---------- Menus, help, keys ---------- */
 function closeMenus(){document.querySelectorAll('.menu.open').forEach(m=>m.classList.remove('open'))}

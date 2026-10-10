@@ -6,7 +6,7 @@ A classroom maths game. Combine four numbers from 1 to 9 with +, −, × and ÷ 
 
 Click a card, then an operation, then another card to combine them. Keep going until one card is left. If it's 24, you've solved it.
 
-Cards are always whole numbers, and every puzzle can be solved. Some puzzles need brackets: combining two cards first works like brackets, so 8 − 2 and then × 4 is (8 − 2) × 4.
+Cards are always whole numbers that can't go below zero, and every puzzle can be solved. On Hard, some puzzles need brackets: combining two cards first works like brackets, so 8 − 2 and then × 4 is (8 − 2) × 4.
 
 Keyboard: `1`–`4` pick a card · `+ - * /` pick an operation · `Backspace` undo · `R` reset
 
@@ -18,7 +18,7 @@ Open `public/index.html` in a browser. No server or internet needed.
 
 1. The teacher opens the **host screen** (`/host.html`, or the **Host a Game** button on the home page), which shows a lobby code.
 2. Up to 24 students open the game's website, type the code, pick an emoji and type their name.
-3. The teacher chooses the game mode, the number of cards (4 or 5) and, for a points game, the number of rounds (1–10), then presses **Start Match**.
+3. The teacher chooses the game mode, the number of cards (4 or 5), the difficulty and, for a points game, the number of rounds (1–10), then presses **Start Match**. On **Easy**, every puzzle can be solved without brackets. On **Hard**, about half of 4-card puzzles (and about 1 in 7 five-card puzzles) need brackets.
 
 Each round, students race in pairs (plus one group of three if needed, shared around so it isn't always the same students) and each pair gets its own cards, so no one can copy a neighbour's answer. Rounds last 30 seconds and the next one starts by itself. Speed is timed on each student's own device, so a slow connection doesn't cost points.
 
@@ -68,13 +68,13 @@ It ends with a report: **Everything passed**, or a list of what failed. Options 
 - `--url URL` test the live site instead of a copy on your computer
 - `--shots FOLDER` save screenshots of the host and player screens
 
-The match test plays whole matches from start to podium for every setup at once: Points and Elimination, each with 4 and 5 cards, 10 matches of each with 24 simulated players. Every round it checks the cards, the answers shown, every accepted answer (including ones with brackets), the points or lives, and that every match finishes by itself. It takes about 10 minutes.
+The match test plays whole matches from start to podium for every setup at once: Points and Elimination, each with 4 and 5 cards, each on Easy and Hard (8 setups, 5 matches of each, 24 simulated players per match). Every round it checks the cards, the answers shown, every accepted answer (including ones with brackets), that Easy never deals a puzzle that needs brackets, the points or lives, and that every match finishes by itself. It takes about 10 minutes.
 
 ```
 npm run test:matches
 ```
 
-Options: `--matches N` (default 10), `--players N` (default 24), `--rounds N` for Points (default 10), `--lives N` for Elimination (default 3), `--url URL`.
+Options: `--matches N` (default 5), `--players N` (default 24), `--rounds N` for Points (default 10), `--lives N` for Elimination (default 3), `--url URL`.
 
 ## Project structure
 

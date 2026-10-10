@@ -58,6 +58,11 @@ function render(anim){
 }
 
 /* ---------- Playing ---------- */
+// A small shake on these cards (a move that isn't allowed, such as one giving a negative number)
+function nudge(idx){
+  const slots=$('cards').children;
+  for(const i of idx){const c=slots[i]&&slots[i].querySelector('.card');if(!c)continue;c.classList.remove('nope');void c.offsetWidth;c.classList.add('nope')}
+}
 function clickCard(i){
   if(S.done)return;
   if(S.sel===null){S.sel=i;render();return}
@@ -65,6 +70,8 @@ function clickCard(i){
   if(!S.op){S.sel=i;render();return}
   const a=S.slots[S.sel],b=S.slots[i];
   const v=apply(S.op,a.v,b.v);
+  // No negative numbers: both cards give a small shake (no message) and the operation is cleared
+  if(v&&v.n<0){const j=S.sel;S.op=null;render();nudge([j,i]);return}
   if(!v){setMsg("You can't divide by zero!",'bad');S.op=null;render();return}
   if(v.d!==1){ // no fractional cards
     setMsg(`${fmtText(a.v)} ÷ ${fmtText(b.v)} isn't a whole number. Try something else.`,'bad');
@@ -101,7 +108,7 @@ function reveal(){
   if(S.done){if(lastResult)showResult(...lastResult);return}
   S.done=true;stopTimer();if(!S.practice)S.skipped++;
   const sols=S.puzzle.sols;
-  if(!sols.length)showResult('!','No solution','These four numbers can’t make 24 (each step has to be a whole number).','Well spotted if you said so!','',true);
+  if(!sols.length)showResult('!','No solution','These four numbers can’t make 24 (each step has to be a whole number, not below zero).','Well spotted if you said so!','',true);
   else showResult('i','Solution',`${sols[0].e} = 24`,`There ${sols.length>1?'are':'is'} ${sols.length} way${sols.length>1?'s':''} to make 24.`,altText(),false);
   render();
 }

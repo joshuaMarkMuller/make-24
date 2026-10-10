@@ -2,13 +2,13 @@
 /*
  * Match test: plays whole matches, start to podium, for every game setup at once and checks the rules.
  *
- *   npm run test:matches                         10 matches of each setup, 24 players each (about 10 minutes)
+ *   npm run test:matches                         5 matches of each setup, 24 players each (about 10 minutes)
  *   npm run test:matches -- --matches 2          fewer matches
  *
- * Setups: Points with 4 cards, Points with 5 cards, Elimination with 4 cards, Elimination with 5 cards.
+ * Setups: Points and Elimination, each with 4 and 5 cards, each on Easy and Hard (8 setups).
  *
  * Options:
- *   --matches N    matches of each setup, all played at the same time (default 10)
+ *   --matches N    matches of each setup, all played at the same time (default 5)
  *   --players N    players per match, 2–24 (default 24)
  *   --rounds N     rounds per Points match, 1–10 (default 10)
  *   --lives N      lives per Elimination match, 3–5 (default 3)
@@ -19,6 +19,7 @@
  * run out of time. Three wins in a row steal from someone. It checks, every round:
  *   - every group's cards are 4 or 5 numbers from 1 to 9, can make 24, and no two groups share a puzzle
  *   - the answer shown for each group really makes 24 from exactly those cards
+ *   - Easy: every puzzle can be done without brackets, and the answer shown has none
  *   - every correct answer is accepted (bracket answers included) and a wrong one is refused
  *   - Points: speed points, the first-in-group bonus and every score (allowing for steals)
  *   - Elimination: the winner of each race keeps their lives and everyone else in it loses one
@@ -34,18 +35,16 @@ const { spawn } = require('child_process');
 const { io } = require('socket.io-client');
 
 const arg = (name, def) => { const i = process.argv.indexOf('--' + name); return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : def; };
-const MATCHES = Math.max(1, Math.min(12, +arg('matches', 10) || 10));
+const MATCHES = Math.max(1, Math.min(12, +arg('matches', 5) || 5));
 const PLAYERS = Math.max(2, Math.min(24, +arg('players', 24) || 24));
 const ROUNDS = Math.max(1, Math.min(10, +arg('rounds', 10) || 10));
 const LIVES = Math.max(3, Math.min(5, +arg('lives', 3) || 3));
 let URL = arg('url', '').replace(/\/$/, '');
 
-const SETUPS = [
-  { key: 'P4', label: 'Points, 4 cards', mode: 'points', cards: 4 },
-  { key: 'P5', label: 'Points, 5 cards', mode: 'points', cards: 5 },
-  { key: 'E4', label: 'Elimination, 4 cards', mode: 'elim', cards: 4 },
-  { key: 'E5', label: 'Elimination, 5 cards', mode: 'elim', cards: 5 },
-];
+const SETUPS = [];
+for (const difficulty of ['easy', 'hard']) for (const mode of ['points', 'elim']) for (const cards of [4, 5])
+  SETUPS.push({ key: (mode === 'points' ? 'P' : 'E') + cards + difficulty[0].toUpperCase(), mode, cards, difficulty,
+    label: `${mode === 'points' ? 'Points' : 'Elimination'}, ${cards} cards, ${difficulty === 'easy' ? 'Easy' : 'Hard'}` });
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -56,8 +55,8 @@ const fail = m => { if (issues.length < 500) issues.push(m); log('FAIL', m); };
 
 /* ---------- Maths helpers (independent of the game's own solver) ---------- */
 const OPS = ['+', '−', '×', '÷'];
-const doOp = (op, x, y) => op === '+' ? x + y : op === '−' ? x - y : op === '×' ? x * y : (y === 0 || x % y ? null : x / y);
-// Every way to play the cards (two at a time, whole numbers only); returns the moves for one answer, chosen at random
+const doOp = (op, x, y) => op === '+' ? x + y : op === '−' ? (x - y < 0 ? null : x - y) : op === '×' ? x * y : (y === 0 || x % y ? null : x / y);
+// Every way to play the cards (two at a time, whole numbers only, never negative); returns the moves for one answer, chosen at random
 function findMoves(nums) {
   const all = [];
   (function rec(sl, moves) {
@@ -128,7 +127,7 @@ async function playMatch(setup, n) {
   const cr = await emitAck(host, 'createLobby');
   if (!cr.ok) { fail(`${M.name}: couldn't create a lobby: ${cr.error}`); return M; }
   M.code = cr.code;
-  host.emit('setMode', setup.mode); host.emit('setCards', setup.cards);
+  host.emit('setMode', setup.mode); host.emit('setCards', setup.cards); host.emit('setDifficulty', setup.difficulty);
   if (setup.mode === 'points') host.emit('setRounds', ROUNDS); else host.emit('setLives', LIVES);
 
   let state = null, lastResultRound = 0, livesAtStart = null, stolenLives = new Map();
@@ -136,6 +135,7 @@ async function playMatch(setup, n) {
   host.on('state', st => {
     state = st;
     if (st.phase === 'playing' && livesAtStart === null) {
+      if (st.difficulty !== setup.difficulty || st.cardCount !== setup.cards || st.mode !== setup.mode) fail(`${M.name}: the host's settings didn't stick (${st.mode}, ${st.cardCount} cards, ${st.difficulty})`);
       livesAtStart = new Map(st.players.map(p => [p.name, { lives: p.lives, out: p.out }]));
       stolenLives = new Map();
       // Out players aren't put in races
@@ -223,6 +223,7 @@ function checkRound(M, st, livesAtStart, stolenLives) {
     if (g.nums.length !== cards || g.nums.some(x => !Number.isInteger(x) || x < 1 || x > 9)) fail(`${R}: bad cards ${g.nums}`);
     if (!g.solution || !answerMakes24(g.solution, g.nums)) fail(`${R}: the answer shown for ${g.nums} is wrong: "${g.solution}"`);
     const needsBrackets = !solvableWithoutBrackets(g.nums);
+    if (M.setup.difficulty === 'easy' && (needsBrackets || g.solution.includes('('))) fail(`${R}: Easy dealt ${g.nums}, which ${needsBrackets ? 'needs brackets' : 'has an answer shown with brackets'} ("${g.solution}")`);
     if (needsBrackets) { M.bracketPuzzles++; if (!g.solution.includes('(')) fail(`${R}: ${g.nums} needs brackets but the answer shown has none: "${g.solution}"`); }
     if (g.solvers.filter(x => x.first).length > 1) fail(`${R}: two winners in one race`);
     for (const x of g.solvers) {

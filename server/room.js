@@ -11,7 +11,7 @@
  * for their own speed, and the first in each group gets a bonus.
  */
 const crypto = require('crypto');
-const { makePuzzle } = require('../public/js/solver.js');
+const { makePuzzle, DIFFICULTIES } = require('../public/js/solver.js');
 const { cleanEmoji } = require('../public/js/emoji.js');
 
 const MAX_PLAYERS = 24;
@@ -65,7 +65,7 @@ function checkMoves(nums, moves) {
     if (!x || !y) return null;
     let v;
     if (op === '+') v = x.v + y.v;
-    else if (op === '−') v = x.v - y.v;
+    else if (op === '−') { v = x.v - y.v; if (v < 0) return null; }   // no negative numbers
     else if (op === '×') v = x.v * y.v;
     else { if (y.v === 0 || x.v % y.v !== 0) return null; v = x.v / y.v; }
     const p = PREC[op];
@@ -89,6 +89,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     feed: [], feedSeq: 0,    // race results and steals, shown in the little terminal window
     matchRounds: 5,          // rounds in this match (host chooses 1–10; points mode only)
     cardCount: 4,            // cards per puzzle (host chooses 4 or 5); the target is always 24
+    difficulty: 'easy',      // 'easy' (every puzzle can be done without brackets) or 'hard' (some need brackets)
     matchRound: 0,           // round number within the current match (0 = not started)
     hostSocket: null,        // socket.id of the host screen (not a player)
     hostKey: crypto.randomBytes(12).toString('hex'),   // lets the host screen reclaim the lobby after a refresh
@@ -131,6 +132,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       feed: game.feed.slice(-FEED_KEEP),
       maxLives: game.startLives,
       cardCount: game.cardCount,
+      difficulty: game.difficulty,
       hostId: hostId(),
       hostConnected: !!game.hostSocket,
       lobbyOpen: game.phase === 'lobby',   // joining closes when the match starts
@@ -214,8 +216,8 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     game.seq++;
     game.matchRound++;
     // Every group gets its own puzzle (makePuzzle never repeats a recent one, so no two groups share)
-    for (const g of game.groups) g.puzzle = makePuzzle(game.cardCount);
-    game.practice = makePuzzle(game.cardCount);
+    for (const g of game.groups) g.puzzle = makePuzzle(game.cardCount, game.difficulty);
+    game.practice = makePuzzle(game.cardCount, game.difficulty);
     game.result = null;
     game.startAt = Date.now() + COUNTDOWN_MS;
     game.endsAt = game.startAt + ROUND_MS;
@@ -513,6 +515,14 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       if (![4, 5].includes(c) || c === game.cardCount) return;   // nothing to change
       game.cardCount = c;
       for (const p of game.players.values()) resetBoardShape(p);
+      broadcast();
+    });
+
+    // Host only, in the waiting room: Easy (no brackets needed) or Hard (some puzzles need brackets)
+    socket.on('setDifficulty', d => {
+      if (!isHost() || game.phase !== 'lobby') return;
+      if (!DIFFICULTIES.includes(d) || d === game.difficulty) return;
+      game.difficulty = d;
       broadcast();
     });
 

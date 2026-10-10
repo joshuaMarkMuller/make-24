@@ -19,21 +19,21 @@ const is24=v=>v.n===24&&v.d===1;
  * Plays the game the way a student does: pick two cards, combine them with an
  * operation, and keep going until one card is left. Combining in a different order
  * is the same as using brackets, e.g. 8 − 2 first, then × 4, is (8 − 2) × 4.
- * A solution only counts if every step gives a whole number (no fractional cards),
- * the same rule the game uses. Expressions are written with only the brackets the
- * normal order of operations needs.
+ * A solution only counts if every step gives a whole number that isn't negative
+ * (no fractional or negative cards), the same rules the game uses. Expressions are
+ * written with only the brackets the normal order of operations needs.
  */
 const OPS=['+','−','×','÷'];
 const PRECEDENCE={'+':1,'−':1,'×':2,'÷':2};
 function combine(op,x,y){
-  // x and y are {v, e, prec, neg}; returns the new card, or null if it isn't a whole number
+  // x and y are {v, e, prec, div}; returns the new card, or null if it would be a fraction or negative
   let v;
-  if(op==='+')v=x.v+y.v;else if(op==='−')v=x.v-y.v;else if(op==='×')v=x.v*y.v;
+  if(op==='+')v=x.v+y.v;else if(op==='−'){v=x.v-y.v;if(v<0)return null}else if(op==='×')v=x.v*y.v;
   else{if(y.v===0||x.v%y.v!==0)return null;v=x.v/y.v}
   const p=PRECEDENCE[op];
   const L=x.prec<p?`(${x.e})`:x.e;
   const R=(y.prec<p||(y.prec===p&&(op==='−'||op==='÷')))?`(${y.e})`:y.e;
-  return{v,e:`${L} ${op} ${R}`,prec:p,neg:x.neg||y.neg||v<0,div:x.div||y.div||op==='÷'};
+  return{v,e:`${L} ${op} ${R}`,prec:p,div:x.div||y.div||op==='÷'};
 }
 // limit: stop after this many different solutions (keeps 5-card puzzles quick)
 function solve(nums,limit=Infinity){
@@ -41,13 +41,13 @@ function solve(nums,limit=Infinity){
   // Sets of card values already known not to make 24, however they're combined
   // (makes impossible puzzles quick to rule out)
   const dead=new Set();
-  const start=nums.map(n=>({v:n,e:String(n),prec:3,neg:false,div:false}));
+  const start=nums.map(n=>({v:n,e:String(n),prec:3,div:false}));
   // Returns true if these cards can make 24 (whether or not the answer was new)
   (function rec(cards){
     if(cards.length===1){
       const c=cards[0];
       if(c.v!==24)return false;
-      if(!sols.has(c.e))sols.set(c.e,{e:c.e,neg:c.neg,div:c.div,br:c.e.includes('(')});
+      if(!sols.has(c.e))sols.set(c.e,{e:c.e,div:c.div,br:c.e.includes('(')});
       return true;
     }
     const key=cards.map(c=>c.v).sort((a,b)=>a-b).join();
@@ -66,18 +66,25 @@ function solve(nums,limit=Infinity){
     if(!can)dead.add(key);
     return can;
   })(start);
-  // Simplest first: no brackets, no negative running totals, no division
-  return[...sols.values()].sort((p,q)=>(p.br-q.br)||(p.neg-q.neg)||(p.div-q.div)||p.e.length-q.e.length||p.e.localeCompare(q.e));
+  // Simplest first: no brackets, then no division
+  return[...sols.values()].sort((p,q)=>(p.br-q.br)||(p.div-q.div)||p.e.length-q.e.length||p.e.localeCompare(q.e));
 }
 
-/* ---------- Puzzle generation: 4 or 5 numbers from 1–9, always solvable (brackets allowed) ---------- */
+/* ---------- Puzzle generation: 4 or 5 numbers from 1–9, always solvable ----------
+ * difficulty 'easy': only puzzles with an answer that needs no brackets (written in one line and
+ *   worked out with the normal order of operations), and the answer shown has no brackets.
+ * difficulty 'hard': any solvable puzzle, so about half of 4-card puzzles need brackets.
+ */
 const recent=[];
-function makePuzzle(count=4){
+const DIFFICULTIES=['easy','hard'];
+function makePuzzle(count=4,difficulty='hard'){
+  const easy=difficulty==='easy';
   for(let t=0;t<20000;t++){
     const nums=Array.from({length:count},()=>1+Math.floor(Math.random()*9));
     const key=[...nums].sort((a,b)=>a-b).join(',');
     if(recent.includes(key))continue;
     const sols=solve(nums,count>4?200:Infinity); if(!sols.length)continue;
+    if(easy&&sols[0].br)continue;   // easy: needs an answer without brackets (simplest answers come first)
     recent.push(key); if(recent.length>40)recent.shift();
     return{nums,sols};
   }
@@ -86,4 +93,4 @@ function makePuzzle(count=4){
 }
 
 // Export for Node (server) when available; in the browser these are globals.
-if (typeof module !== 'undefined') module.exports = { F, apply, is24, solve, makePuzzle };
+if (typeof module !== 'undefined') module.exports = { F, apply, is24, solve, makePuzzle, DIFFICULTIES };

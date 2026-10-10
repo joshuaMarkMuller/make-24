@@ -57,6 +57,7 @@ function describeGroups(n){
   return `${n} players → ${parts.join(' and ')} each round`;
 }
 function standings(s){return rankPlayers(s)}
+const diffLabel=s=>s.difficulty==='hard'?'Hard (some need brackets)':'Easy (no brackets needed)';
 
 /* ---------- Joining ---------- */
 // The code can come from the link (?code=KQ7PX); name and code are remembered for a quick rejoin
@@ -197,7 +198,7 @@ function render(){
 
   // Status bar
   $('status').textContent=(s.phase==='lobby'||!s.matchRound)
-    ?`Waiting room · ${s.players.length} player${s.players.length===1?'':'s'} · ${isElim(s)?'Elimination':s.matchRounds+' rounds'} · ${s.cardCount} cards`
+    ?`Waiting room · ${s.players.length} player${s.players.length===1?'':'s'} · ${isElim(s)?'Elimination':s.matchRounds+' rounds'} · ${s.cardCount} cards · ${s.difficulty==='hard'?'Hard':'Easy'}`
     :isElim(s)?`Round ${s.matchRound} · ${s.players.filter(p=>!p.out).length} left`:`Round ${s.matchRound} of ${s.matchRounds}`;
   if(me&&s.matchRound&&s.phase!=='lobby'){
     const rows=standings(s),rank=rows.findIndex(p=>samePlace(s,p,me))+1;
@@ -224,7 +225,7 @@ function render(){
     if(list.dataset.sig!==sig){list.dataset.sig=sig;list.innerHTML=s.players.map(p=>`<li><span>${emojiTag(s,p)}${esc(p.name)}${p.id===R.myId?'<span class="you">(you)</span>':''}</span>`+
       `</li>`).join('')||'<li class="empty">Nobody has joined yet.</li>';if(R.warm)requestAnimationFrame(fitBoard)}
     $('roundsSel').value=String(s.matchRounds);$('roundsSel').disabled=true;$('roundsSel').hidden=isElim(s);
-    $('roundsNote').textContent=isElim(s)?`Elimination: everyone has ${s.maxLives} lives, last one standing wins · ${s.cardCount}-card game.`:`Chosen by the host · ${s.cardCount}-card game.`;
+    $('roundsNote').textContent=isElim(s)?`Elimination: everyone has ${s.maxLives} lives, last one standing wins · ${s.cardCount}-card game · ${diffLabel(s)}.`:`Chosen by the host · ${s.cardCount}-card game · ${diffLabel(s)}.`;
     $('startBtn').hidden=true;
     if(sittingOut&&isElim(s)&&me.out){
       $('lobbyTitle').textContent='You’re out!';
@@ -500,6 +501,11 @@ function renderCards(anim){
   });
   document.querySelectorAll('.op').forEach(b=>b.classList.toggle('sel',b.dataset.op===R.op));
 }
+// A small shake on these cards (a move that isn't allowed, such as one giving a negative number)
+function nudge(idx){
+  const slots=$('cards').children;
+  for(const i of idx){const c=slots[i]&&slots[i].querySelector('.card');if(!c)continue;c.classList.remove('nope');void c.offsetWidth;c.classList.add('nope')}
+}
 function canPlay(){
   const s=R.state,me=s&&s.players.find(p=>p.id===R.myId);
   if(R.warm)return !R.locked&&!!s&&s.phase==='lobby'&&!!me;   // warm-up in the waiting room
@@ -517,6 +523,8 @@ function clickCard(i){
   if(!R.op){R.sel=i;renderCards();sendProgress();return}
   const a=R.slots[R.sel],b=R.slots[i],op=R.op;
   let v;
+  // No negative numbers: both cards give a small shake (no message) and the operation is cleared
+  if(op==='−'&&a.v-b.v<0){R.op=null;renderCards();nudge([R.sel,i]);return}
   if(op==='+')v=a.v+b.v;else if(op==='−')v=a.v-b.v;else if(op==='×')v=a.v*b.v;
   else{
     if(b.v===0){setMsg("Can’t divide by zero",'bad');R.op=null;renderCards();return}
@@ -666,22 +674,22 @@ function applySel(o,opp,oppWon,layout){
 
 /* ---------- Warm-up: cards to play in the waiting room ----------
  * While waiting for the host, the same cards, buttons and keys as a race sit to the right of the
- * waiting room (underneath on phones), using the host's card setting (4 or 5). There's no time limit and no score,
- * and nothing is sent to the server. Making 24 deals a different set; Give Up shows one
+ * waiting room (underneath on phones), using the host's card and difficulty settings.
+ * There's no time limit and no score, and nothing is sent to the server. Making 24 deals a different set; Give Up shows one
  * answer and deals a different set. The warm-up stops as soon as the match starts.
  */
 const WARM_WIN_MS=1200,WARM_ANSWER_MS=3000;
 function startWarm(s){
-  const n=s.cardCount||4;
-  if(R.warm&&R.warmCount===n)return;          // already warming up with the right number of cards
+  const n=s.cardCount||4,d=s.difficulty||'easy';
+  if(R.warm&&R.warmCount===n&&R.warmDiff===d)return;   // already warming up with the host's settings
   const was=R.warm;R.warm=true;
   if(!was){clearOpps();R.practice=false;R.pendingSubmit=null;R.boardRound=null;$('felt').classList.add('warm');setMsg('Warm-up');
     $('timer').textContent='Time: no limit';$('timer').classList.remove('warn')}
-  warmDeal(n);
+  R.warmDiff=d;warmDeal(n);
 }
 function warmDeal(n){
   clearTimeout(R.warmTimer);clearTimeout(R.wrongTimer);R.wrongIdx=null;
-  const p=makePuzzle(n||R.warmCount||4);
+  const p=makePuzzle(n||R.warmCount||4,R.warmDiff||'easy');
   R.warmCount=p.nums.length;R.warmSeq=(R.warmSeq||0)+1;R.warmSol=p.sols[0]?p.sols[0].e:'';
   R.nums=p.nums;R.suits=p.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
   resetBoard();R.locked=false;
