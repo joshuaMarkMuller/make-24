@@ -24,7 +24,7 @@ function newPuzzle(p){
   S.slots=startSlots();
   S.history=[];S.sel=null;S.op=null;S.done=false;S.practice=false;
   closeAll();
-  setMsg(S.puzzle.sols.length?'Pick a card, an operation, then another card.':'This set can’t make 24 without brackets. Can the class prove it?','');
+  setMsg(S.puzzle.sols.length?'Pick a card, an operation, then another card.':'This set can’t make 24. Can the class prove it?','');
   startTimer();render('deal');
 }
 
@@ -101,7 +101,7 @@ function reveal(){
   if(S.done){if(lastResult)showResult(...lastResult);return}
   S.done=true;stopTimer();if(!S.practice)S.skipped++;
   const sols=S.puzzle.sols;
-  if(!sols.length)showResult('!','No solution','These four numbers can’t make 24 without brackets.','Well spotted if you said so!','',true);
+  if(!sols.length)showResult('!','No solution','These four numbers can’t make 24 (each step has to be a whole number).','Well spotted if you said so!','',true);
   else showResult('i','Solution',`${sols[0].e} = 24`,`There ${sols.length>1?'are':'is'} ${sols.length} way${sols.length>1?'s':''} to make 24.`,altText(),false);
   render();
 }

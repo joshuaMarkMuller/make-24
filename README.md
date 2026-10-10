@@ -6,7 +6,7 @@ A classroom maths game. Combine four numbers from 1 to 9 with +, −, × and ÷ 
 
 Click a card, then an operation, then another card to combine them. Keep going until one card is left. If it's 24, you've solved it.
 
-Cards are always whole numbers, and every puzzle can be solved without brackets.
+Cards are always whole numbers, and every puzzle can be solved. Some puzzles need brackets: combining two cards first works like brackets, so 8 − 2 and then × 4 is (8 − 2) × 4.
 
 Keyboard: `1`–`4` pick a card · `+ - * /` pick an operation · `Backspace` undo · `R` reset
 
@@ -67,6 +67,14 @@ It ends with a report: **Everything passed**, or a list of what failed. Options 
 - `--rounds N` rounds per match (default 10; all the checks need at least 9)
 - `--url URL` test the live site instead of a copy on your computer
 - `--shots FOLDER` save screenshots of the host and player screens
+
+The match test plays whole matches from start to podium for every setup at once: Points and Elimination, each with 4 and 5 cards, 10 matches of each with 24 simulated players. Every round it checks the cards, the answers shown, every accepted answer (including ones with brackets), the points or lives, and that every match finishes by itself. It takes about 10 minutes.
+
+```
+npm run test:matches
+```
+
+Options: `--matches N` (default 10), `--players N` (default 24), `--rounds N` for Points (default 10), `--lives N` for Elimination (default 3), `--url URL`.
 
 ## Project structure
 
