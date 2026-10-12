@@ -14,11 +14,12 @@
  *   --lives N      lives per Elimination match, 3–5 (default 3)
  *   --url URL      test a running server (default: starts its own on a spare port)
  *
- * Every player is a simulated device. Most make 24 at some point in each round (answers are found the
+ * Every player is a simulated device. Most make the round's target (24, 36 or 48) at some point in each round (answers are found the
  * way a student plays: two cards at a time, in any order, so many need brackets), some give up and some
  * run out of time. Three wins in a row steal from someone. It checks, every round:
- *   - every group's cards are 4 or 5 numbers from 1 to 9, can make 24, and no two groups share a puzzle
- *   - the answer shown for each group really makes 24 from exactly those cards
+ *   - every round's target is 24, 36 or 48 (and it changes between rounds)
+ *   - every group's cards are 4 or 5 numbers from 1 to 9, can make the target, and no two groups share a puzzle
+ *   - the answer shown for each group really makes the target from exactly those cards
  *   - Easy: every puzzle can be done without brackets, and the answer shown has none
  *   - every correct answer is accepted (bracket answers included) and a wrong one is refused
  *   - Points: speed points, the first-in-group bonus and every score (allowing for steals)
@@ -57,12 +58,12 @@ const fail = m => { if (issues.length < 500) issues.push(m); log('FAIL', m); };
 const OPS = ['+', '−', '×', '÷'];
 const doOp = (op, x, y) => op === '+' ? x + y : op === '−' ? (x - y < 0 ? null : x - y) : op === '×' ? x * y : (y === 0 || x % y ? null : x / y);
 // Every way to play the cards (two at a time, whole numbers only, never negative); returns the moves for one answer, chosen at random
-function findMoves(nums) {
+function findMoves(nums, target = 24) {
   const all = [];
   (function rec(sl, moves) {
     if (all.length >= 60) return;
     const idx = sl.map((v, i) => v == null ? -1 : i).filter(i => i >= 0);
-    if (idx.length === 1) { if (sl[idx[0]] === 24) all.push(moves); return; }
+    if (idx.length === 1) { if (sl[idx[0]] === target) all.push(moves); return; }
     for (const a of idx) for (const b of idx) { if (a === b) continue; for (const op of OPS) {
       const v = doOp(op, sl[a], sl[b]); if (v == null) continue;
       const n = [...sl]; n[b] = v; n[a] = null; rec(n, [...moves, { a, b, op }]); } }
@@ -70,7 +71,7 @@ function findMoves(nums) {
   return all.length ? all[Math.floor(Math.random() * all.length)] : null;
 }
 // A one-line answer with no brackets, worked out with the normal order of operations (the old puzzle rule)
-function solvableWithoutBrackets(nums) {
+function solvableWithoutBrackets(nums, target = 24) {
   const perms = []; (function p(a, r) { if (!r.length) perms.push(a); r.forEach((x, i) => p([...a, x], r.filter((_, j) => j !== i))); })([], nums);
   for (const p of perms) for (let k = 0; k < 4 ** (nums.length - 1); k++) {
     const ops = []; for (let i = 0, x = k; i < nums.length - 1; i++, x >>= 2) ops.push(OPS[x & 3]);
@@ -81,16 +82,16 @@ function solvableWithoutBrackets(nums) {
       else { terms.push(n); signs.push(op); } }
     if (!okk) continue;
     let v = terms[0]; for (let i = 1; i < terms.length; i++) v = signs[i] === '+' ? v + terms[i] : v - terms[i];
-    if (v === 24) return true;
+    if (v === target) return true;
   }
   return false;
 }
-// Check a written answer: uses exactly these cards and makes 24
-function answerMakes24(expr, nums) {
+// Check a written answer: uses exactly these cards and makes the target
+function answerMakes(expr, nums, target = 24) {
   const used = (expr.match(/\d+/g) || []).map(Number).sort((a, b) => a - b).join();
   if (used !== [...nums].sort((a, b) => a - b).join()) return false;
   const v = Function('return ' + expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-'))();
-  return Math.abs(v - 24) < 1e-9;
+  return Math.abs(v - target) < 1e-9;
 }
 
 /* ---------- Server ---------- */
@@ -188,20 +189,20 @@ function simPlayer(M, name) {
   s.on('round', r => {
     me.timers.forEach(clearTimeout); me.timers = []; me.stealing = false;
     const startAt = Date.now() + r.countdownMs;
-    const moves = findMoves(r.nums);
-    if (!moves) { fail(`${M.name}: ${name} was dealt cards that can't make 24: ${r.nums}`); return; }
+    const moves = findMoves(r.nums, r.target);
+    if (!moves) { fail(`${M.name}: ${name} was dealt cards that can't make ${r.target}: ${r.nums}`); return; }
     const at = (ms, f) => me.timers.push(setTimeout(f, r.countdownMs + ms));
     // Now and then, a wrong answer first (should be refused)
     if (Math.random() < 0.05) at(rand(500, 1500), () => {
       const bad = moves.map(m => ({ ...m })); bad[bad.length - 1].op = bad[bad.length - 1].op === '+' ? '×' : '+';
       const sl = [...r.nums]; for (const m of bad) { const v = sl[m.a] == null || sl[m.b] == null ? null : doOp(m.op, sl[m.a], sl[m.b]); sl[m.b] = v; sl[m.a] = null; }
-      const reallyWrong = sl.filter(v => v != null).length !== 1 || sl.find(v => v != null) !== 24;
-      if (!reallyWrong) return;   // changing the last operation happened to make 24 anyway
+      const reallyWrong = sl.filter(v => v != null).length !== 1 || sl.find(v => v != null) !== r.target;
+      if (!reallyWrong) return;   // changing the last operation happened to make the target anyway
       s.emit('submit', bad, Math.max(0, (Date.now() - startAt) / 1000), res => { if (res && res.ok) fail(`${M.name}: ${name}'s wrong answer was accepted`); else M.wrongRefused++; });
     });
     const roll = Math.random();
     if (roll < 0.75) at(rand(2000, 26000), () => s.emit('submit', moves, Math.max(0, (Date.now() - startAt) / 1000), res => {
-      if (res && !res.ok && !/already made 24|round is over/.test(res.error)) fail(`${M.name}: ${name}'s answer to ${r.nums} was refused: ${res.error}`);
+      if (res && !res.ok && !/already made|round is over/.test(res.error)) fail(`${M.name}: ${name}'s answer to ${r.nums} was refused: ${res.error}`);
     }));
     else if (roll < 0.85) at(rand(3000, 20000), () => s.emit('giveUp'));
   });
@@ -215,20 +216,22 @@ function simPlayer(M, name) {
 function checkRound(M, st, livesAtStart, stolenLives) {
   const R = `${M.name} round ${st.matchRound}`, cards = M.setup.cards;
   const res = st.result;
-  M.rounds.push({ round: st.matchRound, solved: res.solvedCount, players: st.groups.flatMap(g => g.members).length });
+  const T = res.target;
+  if (![24, 36, 48].includes(T)) fail(`${R}: the target was ${T}, not 24, 36 or 48`);
+  M.rounds.push({ round: st.matchRound, solved: res.solvedCount, players: st.groups.flatMap(g => g.members).length, target: T });
   const keys = res.groups.map(g => [...g.nums].sort((a, b) => a - b).join());
   if (new Set(keys).size !== keys.length) fail(`${R}: two groups had the same puzzle`);
   for (const g of res.groups) {
     M.puzzles++;
     if (g.nums.length !== cards || g.nums.some(x => !Number.isInteger(x) || x < 1 || x > 9)) fail(`${R}: bad cards ${g.nums}`);
-    if (!g.solution || !answerMakes24(g.solution, g.nums)) fail(`${R}: the answer shown for ${g.nums} is wrong: "${g.solution}"`);
-    const needsBrackets = !solvableWithoutBrackets(g.nums);
+    if (!g.solution || !answerMakes(g.solution, g.nums, T)) fail(`${R}: the answer shown for ${g.nums} is wrong: "${g.solution}"`);
+    const needsBrackets = !solvableWithoutBrackets(g.nums, T);
     if (M.setup.difficulty === 'easy' && (needsBrackets || g.solution.includes('('))) fail(`${R}: Easy dealt ${g.nums}, which ${needsBrackets ? 'needs brackets' : 'has an answer shown with brackets'} ("${g.solution}")`);
     if (needsBrackets) { M.bracketPuzzles++; if (!g.solution.includes('(')) fail(`${R}: ${g.nums} needs brackets but the answer shown has none: "${g.solution}"`); }
     if (g.solvers.filter(x => x.first).length > 1) fail(`${R}: two winners in one race`);
     for (const x of g.solvers) {
       M.answers++; if (x.expr.includes('(')) M.bracketAnswers++;
-      if (!answerMakes24(x.expr, g.nums)) fail(`${R}: ${x.name}'s accepted answer "${x.expr}" doesn't make 24 from ${g.nums}`);
+      if (!answerMakes(x.expr, g.nums, T)) fail(`${R}: ${x.name}'s accepted answer "${x.expr}" doesn't make ${T} from ${g.nums}`);
       if (!g.members.includes(x.id)) fail(`${R}: ${x.name} scored in a race they weren't in`);
       if (M.setup.mode === 'points') {
         const expect = Math.round(1000 - 500 * Math.min(x.time, 30) / 30) + (x.first ? 100 : 0);
@@ -296,6 +299,9 @@ function checkFinal(M, st) {
     console.log(`  correct answers accepted: ${answers}, of which ${brA} used brackets · steals: ${steals} · wrong answers refused: ${ms.reduce((a, m) => a + m.wrongRefused, 0)}`);
     console.log(`  winners: ${ms.map(m => m.winner || '—').join('; ')}`);
   }
+  { const ts = all.flatMap(m => m.rounds.map(r => r.target)), seen = [...new Set(ts)].sort();
+    console.log(`\nTargets seen: ${seen.join(', ')} (${ts.length} rounds)`);
+    if (ts.length > 5 && seen.length < 2) fail('The target never changed between rounds'); }
   if (server) console.log(`\nServer: peak ${peak.cpu.toFixed(0)}% of one CPU core, peak memory ${peak.rss.toFixed(0)} MB, ${serverErrors} errors`);
   if (server) server.child.kill();
   console.log(issues.length ? `\n${issues.length} PROBLEM${issues.length > 1 ? 'S' : ''}:\n` + issues.slice(0, 50).map(m => '  - ' + m).join('\n') : '\nEverything passed.');

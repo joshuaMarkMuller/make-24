@@ -13,18 +13,22 @@ function fmtVal(v){
 }
 const timerMode=()=>+document.querySelector('input[name=timerMode]:checked').value;
 const PREC={'+':1,'−':1,'×':2,'÷':2};
+const TGT=()=>S.puzzle.target;
 const startSlots=()=>S.puzzle.nums.map((n,i)=>({v:F(n),e:String(n),prec:3,base:true,suit:S.puzzle.suits[i]}));
 
 /* ---------- Dealing ---------- */
 function newPuzzle(p){
   stopCascade();
-  S.puzzle=p||makePuzzle();
+  S.puzzle=p||makePuzzle();   // a random target each puzzle: 24, 36 or 48
   // Give each card a random suit (just for looks)
   S.puzzle.suits=S.puzzle.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
   S.slots=startSlots();
   S.history=[];S.sel=null;S.op=null;S.done=false;S.practice=false;
   closeAll();
-  setMsg(S.puzzle.sols.length?'Pick a card, an operation, then another card.':'This set can’t make 24. Can the class prove it?','');
+  setMsg(S.puzzle.sols.length?'Pick a card, an operation, then another card.':`This set can’t make ${TGT()}. Can the class prove it?`,'');
+  // Show the target, with a little pop when it changes
+  const tn=$('targetNum');
+  if(tn.textContent!==String(TGT())){tn.textContent=TGT();$('target').classList.remove('pop');void tn.offsetWidth;$('target').classList.add('pop')}
   startTimer();render('deal');
 }
 
@@ -86,8 +90,8 @@ function clickCard(i){
   S.slots[S.sel]=null;S.sel=i;S.op=null;
   const left=S.slots.filter(Boolean);
   if(left.length===1){
-    if(is24(v)){render();win(left[0].e);return}
-    setMsg(`That makes ${fmtText(v)}, not 24. Undo or reset and try again.`,'bad');
+    if(isTarget(v,TGT())){render();win(left[0].e);return}
+    setMsg(`That makes ${fmtText(v)}, not ${TGT()}. Undo or reset and try again.`,'bad');
   }else setMsg('Keep going…','');
   render();
 }
@@ -101,15 +105,15 @@ function win(expr){
   let sub;
   if(S.practice)sub='Practice round, not scored.';
   else{S.solved++;if(S.best==null||t<S.best)S.best=t;sub=`Solved in ${t.toFixed(1)} seconds.`}
-  setMsg('You made 24!','good');render();
-  runCascade(()=>showResult('★','You made 24!',`${expr} = 24`,sub,altText(),false));
+  setMsg(`You made ${TGT()}!`,'good');render();
+  runCascade(()=>showResult('★',`You made ${TGT()}!`,`${expr} = ${TGT()}`,sub,altText(),false));
 }
 function reveal(){
   if(S.done){if(lastResult)showResult(...lastResult);return}
   S.done=true;stopTimer();if(!S.practice)S.skipped++;
   const sols=S.puzzle.sols;
-  if(!sols.length)showResult('!','No solution','These four numbers can’t make 24 (each step has to be a whole number, not below zero).','Well spotted if you said so!','',true);
-  else showResult('i','Solution',`${sols[0].e} = 24`,`There ${sols.length>1?'are':'is'} ${sols.length} way${sols.length>1?'s':''} to make 24.`,altText(),false);
+  if(!sols.length)showResult('!','No solution',`These four numbers can’t make ${TGT()} (each step has to be a whole number, not below zero).`,'Well spotted if you said so!','',true);
+  else showResult('i','Solution',`${sols[0].e} = ${TGT()}`,`There ${sols.length>1?'are':'is'} ${sols.length} way${sols.length>1?'s':''} to make ${TGT()}.`,altText(),false);
   render();
 }
 function altText(){const s=S.puzzle.sols.slice(1,4).map(x=>x.e);return s.length?'Other ways: '+s.join('   ·   '):''}
@@ -146,7 +150,7 @@ function startTimer(){
     if(S.limit){
       const rem=Math.max(0,S.limit-el);t.textContent='Time left: '+Math.ceil(rem);t.classList.toggle('warn',rem<=10);
       if(rem<=0){stopTimer();if(!S.done){S.done=true;if(!S.practice)S.skipped++;setMsg("Time's up!",'bad');
-        const s=S.puzzle.sols[0];showResult('!',"Time's up!",s?`${s.e} = 24`:'No solution exists','',altText(),true);render()}}
+        const s=S.puzzle.sols[0];showResult('!',"Time's up!",s?`${s.e} = ${TGT()}`:'No solution exists','',altText(),true);render()}}
     }else t.textContent='Time: '+Math.floor(el);
   };
   tickFn();S.tick=setInterval(tickFn,200);
@@ -222,7 +226,9 @@ document.querySelectorAll('input[name=timerMode]').forEach(r=>r.onchange=()=>{if
 $('customBtn').onclick=()=>{
   const nums=($('customNums').value.match(/-?\d+/g)||[]).map(Number);
   if(nums.length!==4||nums.some(n=>n<1||n>9)){$('customMsg').textContent='Enter exactly four whole numbers from 1 to 9.';return}
-  newPuzzle({nums,sols:solve(nums)});
+  // Pick a random target these numbers can make (any target, if they can't make one)
+  const ok=TARGETS.filter(t=>solve(nums,1,t).length),target=ok.length?ok[Math.floor(Math.random()*ok.length)]:randomTarget();
+  newPuzzle({nums,sols:solve(nums,Infinity,target),target});
 };
 $('customNums').onkeydown=e=>{if(e.key==='Enter')$('customBtn').click()};
 

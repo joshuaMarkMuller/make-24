@@ -46,6 +46,7 @@
 
   <!-- Felt -->
   <main class="felt" id="felt">
+    <div class="target-badge" id="target">Make <b id="targetNum">24</b></div>
     <div id="msg">Pick a card, an operation, then another card.</div>
     <div class="cards" id="cards"></div>
     <div class="ops" id="ops">
@@ -128,11 +129,11 @@
     <div class="titlebar small"><span class="title" id="helpTitle">How to Play</span>
       <span class="caption-btns"><button class="cap close" data-close="helpDlg" aria-label="Close">×</button></span></div>
     <div class="dialog-body">
-      <p><b>Goal:</b> use all four cards and + − × ÷ to make exactly <b>24</b>.</p>
+      <p><b>Goal:</b> use all four cards and + − × ÷ to make exactly the target shown above the cards: <b>24</b>, <b>36</b> or <b>48</b> (a new one is picked at random each puzzle).</p>
       <ol>
         <li>Click a card, then an operation, then another card.</li>
         <li>The two cards combine into one new card.</li>
-        <li>Keep going until one card is left. If it says 24, you win!</li>
+        <li>Keep going until one card is left. If it matches the target, you win!</li>
       </ol>
       <p>Cards are always whole numbers, so ÷ only works when it divides exactly, and − can't go below zero. Every puzzle can be solved. Some need brackets: combining two cards first works like brackets, so 8 − 2 and then × 4 is (8 − 2) × 4.</p>
       <p><b>Keyboard:</b> 1–4 pick a card · + − * / pick an operation · Backspace undo · R reset · S reveal · F2 or N new puzzle</p>

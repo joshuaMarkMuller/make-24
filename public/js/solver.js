@@ -1,5 +1,6 @@
 /*
- * solver.js — card arithmetic, 24 solver and puzzle generator.
+ * solver.js — card arithmetic, solver and puzzle generator.
+ * Each puzzle has a target: 24, 36 or 48, picked at random.
  * No browser code here, so the multiplayer server (Stage 2+) can reuse it in Node.
  */
 /* ---------- Exact fraction arithmetic ---------- */
@@ -13,7 +14,9 @@ function apply(op,a,b){
     case '÷':return b.n===0?null:F(a.n*b.d,a.d*b.n);
   }
 }
-const is24=v=>v.n===24&&v.d===1;
+const TARGETS=[24,36,48];
+const randomTarget=()=>TARGETS[Math.floor(Math.random()*TARGETS.length)];
+const isTarget=(v,target=24)=>v.n===target&&v.d===1;
 
 /* ---------- Solver: whole-number solutions, brackets allowed ----------
  * Plays the game the way a student does: pick two cards, combine them with an
@@ -36,17 +39,17 @@ function combine(op,x,y){
   return{v,e:`${L} ${op} ${R}`,prec:p,div:x.div||y.div||op==='÷'};
 }
 // limit: stop after this many different solutions (keeps 5-card puzzles quick)
-function solve(nums,limit=Infinity){
+function solve(nums,limit=Infinity,target=24){
   const sols=new Map();
-  // Sets of card values already known not to make 24, however they're combined
+  // Sets of card values already known not to make the target, however they're combined
   // (makes impossible puzzles quick to rule out)
   const dead=new Set();
   const start=nums.map(n=>({v:n,e:String(n),prec:3,div:false}));
-  // Returns true if these cards can make 24 (whether or not the answer was new)
+  // Returns true if these cards can make the target (whether or not the answer was new)
   (function rec(cards){
     if(cards.length===1){
       const c=cards[0];
-      if(c.v!==24)return false;
+      if(c.v!==target)return false;
       if(!sols.has(c.e))sols.set(c.e,{e:c.e,div:c.div,br:c.e.includes('(')});
       return true;
     }
@@ -70,27 +73,28 @@ function solve(nums,limit=Infinity){
   return[...sols.values()].sort((p,q)=>(p.br-q.br)||(p.div-q.div)||p.e.length-q.e.length||p.e.localeCompare(q.e));
 }
 
-/* ---------- Puzzle generation: 4 or 5 numbers from 1–9, always solvable ----------
+/* ---------- Puzzle generation: 4 or 5 numbers from 1–9, always solvable for the target (24, 36 or 48) ----------
  * difficulty 'easy': only puzzles with an answer that needs no brackets (written in one line and
  *   worked out with the normal order of operations), and the answer shown has no brackets.
  * difficulty 'hard': any solvable puzzle, so about half of 4-card puzzles need brackets.
  */
 const recent=[];
 const DIFFICULTIES=['easy','hard'];
-function makePuzzle(count=4,difficulty='hard'){
+function makePuzzle(count=4,difficulty='hard',target=randomTarget()){
   const easy=difficulty==='easy';
   for(let t=0;t<20000;t++){
     const nums=Array.from({length:count},()=>1+Math.floor(Math.random()*9));
-    const key=[...nums].sort((a,b)=>a-b).join(',');
+    const key=target+':'+[...nums].sort((a,b)=>a-b).join(',');
     if(recent.includes(key))continue;
-    const sols=solve(nums,count>4?200:Infinity); if(!sols.length)continue;
+    const sols=solve(nums,count>4?200:Infinity,target); if(!sols.length)continue;
     if(easy&&sols[0].br)continue;   // easy: needs an answer without brackets (simplest answers come first)
     recent.push(key); if(recent.length>40)recent.shift();
-    return{nums,sols};
+    return{nums,sols,target};
   }
-  const fallback={4:[3,8,2,2],5:[3,8,2,2,1]}[count]||[3,8,2,2];
-  return{nums:fallback,sols:solve(fallback,200)};
+  // a × b × 2 ÷ 2 (× 1 for five cards) always works, without brackets
+  const fallback=[...({24:[3,8],36:[4,9],48:[6,8]}[target]||[3,8]),2,2,...(count>4?[1]:[])];
+  return{nums:fallback,sols:solve(fallback,200,target),target};
 }
 
 // Export for Node (server) when available; in the browser these are globals.
-if (typeof module !== 'undefined') module.exports = { F, apply, is24, solve, makePuzzle, DIFFICULTIES };
+if (typeof module !== 'undefined') module.exports = { F, apply, TARGETS, randomTarget, isTarget, solve, makePuzzle, DIFFICULTIES };

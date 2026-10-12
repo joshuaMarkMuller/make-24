@@ -1,4 +1,4 @@
-/* host.js — the teacher's host screen (Stage 5: each host screen opens its own lobby with a join code). Everyone who makes 24 scores speed points;
+/* host.js — the teacher's host screen (Stage 5: each host screen opens its own lobby with a join code). Everyone who makes the round's target (24, 36 or 48) scores speed points;
  * the first in each group gets a bonus. The host doesn't play: they choose
  * the match length, start each round and show the live races and scoreboard. */
 
@@ -99,8 +99,8 @@ function renderLobby(s){
   $('hRounds').value=String(s.matchRounds);
   $('hMode').value=s.mode;$('hRoundsRow').hidden=isElim(s);$('hLivesRow').hidden=!isElim(s);$('hLives').value=String(s.maxLives);
   $('hModeNote').textContent=isElim(s)
-    ?`Everyone starts with ${s.maxLives} lives.`+' Lose your race (or nobody in your group makes 24) and you lose a life. Last player standing wins.'
-    :'Every card must be used to make 24.';
+    ?`Everyone starts with ${s.maxLives} lives.`+' Lose your race (or nobody in your group makes the target) and you lose a life. Last player standing wins.'
+    :'Every card must be used to make the target: 24, 36 or 48, picked at random each round.';
   $('hModeNote').textContent+=s.difficulty==='hard'?' Hard: some puzzles need brackets.':' Easy: every puzzle can be done without brackets.';
   $('hCardCount').value=String(s.cardCount);$('hDifficulty').value=s.difficulty||'easy';
   $('hStart').disabled=s.players.length<2;
@@ -151,6 +151,9 @@ function renderGame(s){
   showView('hostGame');
   $('hostGame').classList.toggle('final',s.phase==='final');   // final results layout: big scoreboard + podium
   const res=s.phase==='result'||s.phase==='final'?s.result:null;
+  // This round's target, with a little pop when it changes
+  const tn=$('hTarget').querySelector('.target-num');
+  if(tn.textContent!==String(s.target)){tn.textContent=s.target;$('hTarget').classList.remove('pop');void tn.offsetWidth;$('hTarget').classList.add('pop')}
   $('hRound').textContent=isElim(s)?`Round ${s.matchRound} · ${s.players.filter(p=>!p.out).length} left`:`Round ${s.matchRound} of ${s.matchRounds}`;
   $('hStatus').textContent=(s.phase==='countdown'?'Get ready…':s.phase==='playing'?'Racing':s.phase==='final'?'Match over':'Round over')+
     (s.hold&&s.phase!=='final'?(s.phase==='result'?' · Paused':' · Pausing after this round'):'');
@@ -175,7 +178,7 @@ function renderGame(s){
   if(s.phase==='countdown')$('hBanner').textContent='Get ready…';
   else if(s.phase==='playing'){
     const solved=s.players.filter(p=>p.solved).length,racing=s.players.filter(p=>p.group!==null&&!p.solved&&!p.gaveUp).length;
-    $('hBanner').textContent=`${solved} made 24 · ${racing} still racing`;
+    $('hBanner').textContent=`${solved} made ${s.target} · ${racing} still racing`;
   }else if(s.phase==='final'){
     const top=rows[0],leaders=rows.filter(p=>samePlace(s,p,top)).map(p=>p.name);
     const ended=res&&res.endedEarly?(isElim(s)?` (game ended in round ${s.matchRound})`:` (game ended after round ${s.matchRound} of ${s.matchRounds})`):'';
@@ -185,7 +188,7 @@ function renderGame(s){
     const out=isElim(s)&&res&&res.knockedOut&&res.knockedOut.length?`  ·  Out: ${listNames(res.knockedOut)}`:'';
     const stealers=s.players.filter(p=>p.canSteal).map(p=>p.name);
     const steal=stealers.length?`  ·  🔥 ${listNames(stealers)} ${stealers.length>1?'are':'is'} choosing who to steal from`:H.lastSteal&&H.lastSteal.round===s.round?`  ·  ${H.lastSteal.text}`:'';
-    $('hBanner').textContent=(f?`${n} of ${s.players.length} made 24 · Fastest: ${f.name} in ${f.time.toFixed(1)} s`:'Nobody made 24 this round')+out+steal+(s.hold?'  ·  Paused':'');
+    $('hBanner').textContent=(f?`${n} of ${s.players.length} made ${s.target} · Fastest: ${f.name} in ${f.time.toFixed(1)} s`:`Nobody made ${s.target} this round`)+out+steal+(s.hold?'  ·  Paused':'');
   }
 
   renderRaces(s,res);
@@ -223,7 +226,7 @@ function renderGame(s){
 }
 
 // One card per group. Each player shows ★ if they were first, ✓ and their time and points
-// if they made 24, or their cards left while still racing.
+// if they made the target, or their cards left while still racing.
 function renderRaces(s,res){
   const nameOf=id=>{const p=s.players.find(q=>q.id===id);return p?p.name:'(left)'};
   // Redraw only when something shown here has changed

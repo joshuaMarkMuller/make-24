@@ -7,11 +7,12 @@
  *
  * Rules: up to 24 players, drawn into pairs each round (plus one group of three when
  * the number is odd), new opponents every round where possible. Every group gets the
- * own 4 or 5 cards at once (no two groups share a puzzle in a round). Everyone who makes 24 within 30 seconds scores points
+ * own 4 or 5 cards at once (no two groups share a puzzle in a round). Each round's target is 24, 36 or 48, picked at random
+ * (the same for everyone that round). Everyone who makes the target within 30 seconds scores points
  * for their own speed, and the first in each group gets a bonus.
  */
 const crypto = require('crypto');
-const { makePuzzle, DIFFICULTIES } = require('../public/js/solver.js');
+const { makePuzzle, DIFFICULTIES, randomTarget } = require('../public/js/solver.js');
 const { cleanEmoji } = require('../public/js/emoji.js');
 
 const MAX_PLAYERS = 24;
@@ -51,11 +52,11 @@ function shuffle(a) {
 }
 
 /*
- * Replay a player's moves on the real puzzle and check they make 24.
+ * Replay a player's moves on the real puzzle and check they make the target (24, 36 or 48).
  * A move {a, b, op} combines card a with card b; the result replaces card b.
  * Same rules as the game: whole numbers only, no dividing by zero.
  */
-function checkMoves(nums, moves) {
+function checkMoves(nums, moves, target = 24) {
   if (!Array.isArray(moves) || moves.length !== nums.length - 1) return null;
   const slots = nums.map(n => ({ v: n, e: String(n), prec: 3 }));
   for (const m of moves) {
@@ -75,7 +76,7 @@ function checkMoves(nums, moves) {
     slots[a] = null;
   }
   const last = slots.filter(Boolean);
-  return last.length === 1 && last[0].v === 24 ? last[0].e : null;
+  return last.length === 1 && last[0].v === target ? last[0].e : null;
 }
 
 function createRoom(io, code, { joinUrls = [] } = {}) {
@@ -88,7 +89,8 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     stealUntil: 0,           // a stealer is choosing: the next round waits until then (at most)
     feed: [], feedSeq: 0,    // race results and steals, shown in the little terminal window
     matchRounds: 5,          // rounds in this match (host chooses 1–10; points mode only)
-    cardCount: 4,            // cards per puzzle (host chooses 4 or 5); the target is always 24
+    cardCount: 4,            // cards per puzzle (host chooses 4 or 5)
+    target: 24,              // number to make this round: 24, 36 or 48, picked at random each round
     difficulty: 'easy',      // 'easy' (every puzzle can be done without brackets) or 'hard' (some need brackets)
     matchRound: 0,           // round number within the current match (0 = not started)
     hostSocket: null,        // socket.id of the host screen (not a player)
@@ -132,6 +134,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       feed: game.feed.slice(-FEED_KEEP),
       maxLives: game.startLives,
       cardCount: game.cardCount,
+      target: game.target,
       difficulty: game.difficulty,
       hostId: hostId(),
       hostConnected: !!game.hostSocket,
@@ -215,13 +218,15 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     game.phase = 'countdown';
     game.seq++;
     game.matchRound++;
-    // Every group gets its own puzzle (makePuzzle never repeats a recent one, so no two groups share)
-    for (const g of game.groups) g.puzzle = makePuzzle(game.cardCount, game.difficulty);
-    game.practice = makePuzzle(game.cardCount, game.difficulty);
+    // A new target for everyone, then every group gets its own puzzle for it
+    // (makePuzzle never repeats a recent one, so no two groups share)
+    game.target = randomTarget();
+    for (const g of game.groups) g.puzzle = makePuzzle(game.cardCount, game.difficulty, game.target);
+    game.practice = makePuzzle(game.cardCount, game.difficulty, game.target);
     game.result = null;
     game.startAt = Date.now() + COUNTDOWN_MS;
     game.endsAt = game.startAt + ROUND_MS;
-    const round = { round: game.seq, countdownMs: COUNTDOWN_MS, limitMs: ROUND_MS };
+    const round = { round: game.seq, countdownMs: COUNTDOWN_MS, limitMs: ROUND_MS, target: game.target };
     for (const [id, p] of game.players) io.to(id).emit('round', { ...round, nums: p.group !== null ? game.groups[p.group].puzzle.nums : game.practice.nums });
     if (game.hostSocket) io.to(game.hostSocket).emit('round', { ...round, nums: null });   // the host doesn't show cards
     broadcast();
@@ -258,6 +263,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       solvedCount: game.groups.reduce((n, g) => n + g.solvers.length, 0),
       fastest: fastest ? { id: fastest.id, name: nameOf(fastest.id), time: fastest.time } : null,
       practiceSolution: game.practice?.sols[0]?.e || null,
+      target: game.target,
     };
     game.result.reason = endMatch ? 'host' : reason;
     if (game.mode === 'elim') {
@@ -317,8 +323,8 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
 
   /* ---------- Elimination mode ---------- */
   const alivePlayers = () => [...game.players.values()].filter(p => !p.out);
-  // End of a round: in each group the winner (first to make 24) keeps their lives and everyone
-  // else loses one. If nobody in a group made 24, everyone in it loses one. A player on 0 lives is out.
+  // End of a round: in each group the winner (first to make the target) keeps their lives and everyone
+  // else loses one. If nobody in a group made it, everyone in it loses one. A player on 0 lives is out.
   function takeLives() {
     const before = alivePlayers().length;
     const knocked = [];
@@ -601,9 +607,9 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
       const p = game.players.get(socket.id);
       const g = p && p.group !== null ? game.groups[p.group] : null;
       if (!g || game.phase !== 'playing' || p.gaveUp || p.beaten) return reply?.({ ok: false, error: 'The round is over.' });
-      if (p.solved) return reply?.({ ok: false, error: 'You have already made 24 this round.' });
-      const expr = checkMoves(g.puzzle.nums, moves);
-      if (!expr) return reply?.({ ok: false, error: 'That doesn’t make 24.' });
+      if (p.solved) return reply?.({ ok: false, error: `You have already made ${game.target} this round.` });
+      const expr = checkMoves(g.puzzle.nums, moves, game.target);
+      if (!expr) return reply?.({ ok: false, error: `That doesn’t make ${game.target}.` });
       // Speed is timed on the player's device, so a slow connection doesn't cost points. The device's time
       // can only be a little less than the server's (the answer took time to arrive), never more, and at
       // most 3 seconds less; anything else falls back to the server's own timing.
@@ -617,7 +623,7 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
         const others = g.members.filter(id => id !== socket.id).map(id => game.players.get(id)?.name).filter(Boolean);
         if (others.length) addFeed(`${p.name} beats ${andList(others)}`, 'win');
       }
-      // Elimination: once someone in the group makes 24, the race is over for everyone else in it
+      // Elimination: once someone in the group makes the target, the race is over for everyone else in it
       if (first && game.mode === 'elim') {
         for (const id of g.members) {
           const q = game.players.get(id);

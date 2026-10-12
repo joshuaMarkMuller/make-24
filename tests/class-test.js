@@ -63,11 +63,11 @@ const fail = m => { issues.push(m); log('FAIL', m); };
 const ok = (cond, m) => { if (cond) { passes.push(m); log('pass', m); } else fail(m); };
 const shot = async (p, name) => { if (SHOTS) await p.screenshot({ path: path.join(SHOTS, name + '.png') }).catch(() => {}); };
 
-// Every way to make 24 from these cards, using the game's rules (whole numbers, never negative)
-function findMoves(nums) {
+// A way to make the round's target (24, 36 or 48) from these cards, using the game's rules (whole numbers, never negative)
+function findMoves(nums, target = 24) {
   function rec(sl, moves) {
     const idx = sl.map((v, i) => v == null ? -1 : i).filter(i => i >= 0);
-    if (idx.length === 1) return sl[idx[0]] === 24 ? moves : null;
+    if (idx.length === 1) return sl[idx[0]] === target ? moves : null;
     for (const a of idx) for (const b of idx) { if (a === b) continue; for (const op of ['+', '−', '×', '÷']) {
       const x = sl[a], y = sl[b]; let v;
       if (op === '+') v = x + y; else if (op === '−') { v = x - y; if (v < 0) continue; } else if (op === '×') v = x * y; else { if (y === 0 || x % y) continue; v = x / y; }
@@ -150,19 +150,19 @@ async function startServer() {
     });
     s.on('disconnect', () => { s.sendBuffer = []; });
     s.on('round', r => {
-      me.timers.forEach(clearTimeout); me.timers = []; me.moves = findMoves(r.nums); me.nums = r.nums.join(); me.startAt = Date.now() + r.countdownMs; me.stealing = false;
+      me.timers.forEach(clearTimeout); me.timers = []; me.moves = findMoves(r.nums, r.target); me.nums = r.nums.join(); me.startAt = Date.now() + r.countdownMs; me.stealing = false;
       if (me.onRound) return me.onRound(r);
       if (me.manual) return;   // this phone is being driven by a check
       if (!me.moves) fail(`${L.name}: unsolvable puzzle ${r.nums}`);
       const at = (ms, f) => me.timers.push(setTimeout(f, r.countdownMs + ms));
       for (let k = 0; k < 3; k++) at(rand(400, 6000), () => s.emit('progress', { layout: r.nums.map(() => true), sel: Math.floor(Math.random() * r.nums.length) }));
       const roll = Math.random();
-      if (roll < 0.75) at(rand(1500, 25000), () => me.submit());          // most make 24 at some point
+      if (roll < 0.75) at(rand(1500, 25000), () => me.submit());          // most make the target at some point
       else if (roll < 0.85) at(rand(3000, 20000), () => s.emit('giveUp')); // some give up
       // the rest run out of time
     });
     me.elapsed = () => Math.max(0, (Date.now() - me.startAt) / 1000);   // timed on the "device"
-    me.submit = (time = me.elapsed()) => s.emit('submit', me.moves, time, res => { if (res && !res.ok && !/already made 24|round is over/.test(res.error)) fail(`${L.name} ${name}: answer refused: ${res.error}`); });
+    me.submit = (time = me.elapsed()) => s.emit('submit', me.moves, time, res => { if (res && !res.ok && !/already made|round is over/.test(res.error)) fail(`${L.name} ${name}: answer refused: ${res.error}`); });
     me.join = () => new Promise(res => s.emit('join', { code: L.code, name, token }, r => {
       me.joins++;
       if (!r.ok) fail(`${L.name}: ${name} couldn't join: ${r.error}`);
@@ -206,7 +206,7 @@ async function startServer() {
       }
       L.trios = L.trios || new Map();
       for (const g of st.groups) if (g.members.length === 3) for (const id of g.members) { const n = st.players.find(p => p.id === id)?.name; if (n) L.trios.set(n, (L.trios.get(n) || 0) + 1); }
-      L.rounds.push({ round: st.matchRound, players: st.players.length, solved: st.result.solvedCount });
+      L.rounds.push({ round: st.matchRound, players: st.players.length, solved: st.result.solvedCount, target: st.result.target });
       for (const p of st.players) {
         const exp = (L.solverPts.get(p.name) || 0) + ((L.adj && L.adj.get(p.name)) || 0) - (L.bonkTaken.get(p.name) || 0);
         if (p.points !== exp) fail(`${L.name} round ${st.matchRound}: ${p.name} has ${p.points} points, expected ${exp}`);
@@ -305,7 +305,7 @@ async function startServer() {
           lastSeq = st.round;
           await sleep(rand(1500, 9000));
           if (p.paused) continue;
-          const mv = findMoves(await p.evaluate(() => R.nums)); let sel = null;
+          const mv = findMoves(...await p.evaluate(() => [R.nums, R.target])); let sel = null;
           for (const m of mv) { if (p.paused) break; if (sel !== m.a) await p.keyboard.press(String(m.a + 1)); await p.keyboard.press(opKey[m.op]); await p.keyboard.press(String(m.b + 1)); sel = m.b; await sleep(70); }
         }
       } catch (e) { if (!/context was destroyed|navigation|Target page/.test(e.message)) fail(`${L.name} browser ${idx}: ${e.message.split('\n')[0]}`); }
@@ -539,12 +539,12 @@ async function startServer() {
       const v = await bp.evaluate(() => ({ board: !document.getElementById('board').hidden, msg: document.getElementById('msg').textContent }));
       ok(v.board && /Practice round/.test(v.msg), `D (Elimination): a knocked-out player gets the same cards to practise on ("${v.msg.slice(0, 40)}…")`);
       const pts0 = await D.host.evaluate(() => H.state.players.find(p => p.name === 'D-Browser').points);
-      const mv = findMoves(await bp.evaluate(() => R.nums)); let sel = null;
+      const mv = findMoves(...await bp.evaluate(() => [R.nums, R.target])); let sel = null;
       for (const m of mv) { if (sel !== m.a) await bp.keyboard.press(String(m.a + 1)); await bp.keyboard.press(opKey[m.op]); await bp.keyboard.press(String(m.b + 1)); sel = m.b; await sleep(70); }
       await sleep(600);
       const after = await bp.evaluate(() => document.getElementById('msg').textContent);
       const me = await D.host.evaluate(() => H.state.players.find(p => p.name === 'D-Browser'));
-      ok(/practice/i.test(after) && !me.solved && me.points === pts0 && me.out, `D (Elimination): making 24 in practice says so and doesn't count (still out, points unchanged)`);
+      ok(/practice/i.test(after) && !me.solved && me.points === pts0 && me.out, `D (Elimination): making the target in practice says so and doesn't count (still out, points unchanged)`);
       await D.host.waitForFunction(() => H.state.phase !== 'playing', null, { timeout: 40000 });
       await sleep(800);
       const sub = await bp.evaluate(() => document.getElementById('resSub').textContent);
@@ -560,7 +560,7 @@ async function startServer() {
       for (let round = 1; round <= 3; round++) {
         await bp.waitForFunction(r => R.state && R.state.phase === 'playing' && R.state.matchRound === r && canPlay(), round, { timeout: 60000 });
         await sleep(600);
-        const mv = findMoves(await bp.evaluate(() => R.nums)); let sel = null;
+        const mv = findMoves(...await bp.evaluate(() => [R.nums, R.target])); let sel = null;
         for (const m of mv) { if (sel !== m.a) await bp.keyboard.press(String(m.a + 1)); await bp.keyboard.press(opKey[m.op]); await bp.keyboard.press(String(m.b + 1)); sel = m.b; await sleep(60); }
         if (round === 1) {
           await sleep(400);
@@ -612,6 +612,9 @@ async function startServer() {
   await sleep(1500);
 
   /* ---------- Final checks ---------- */
+  // Each round's target is 24, 36 or 48, and over a whole match it changes
+  { const ts = LOBBIES.flatMap(L => L.rounds.map(r => r.target));
+    ok(ts.length > 0 && ts.every(t => [24, 36, 48].includes(t)) && new Set(ts).size > 1, `Every round's target is 24, 36 or 48, and it changes between rounds (seen: ${[...new Set(ts)].sort().join(', ')})`); }
   for (const L of LOBBIES) ok((L.puzzleChecks || 0) >= ROUNDS, `${L.name}: every round, each pair had its own puzzle and both players in it got the same cards`);
   for (const L of LOBBIES) {
     for (const sp of L.sims) if ([...sp.codesSeen].some(c => c !== L.code)) fail(`${L.name}: ${sp.name} saw another class's game`);
@@ -633,7 +636,7 @@ async function startServer() {
 
   /* ---------- Report ---------- */
   console.log('\n================ CLASS TEST REPORT ================');
-  for (const L of LOBBIES) console.log(`Class ${L.name} (${L.cards} cards): made 24 per round ${L.rounds.map(r => `${r.solved}/${r.players}`).join(', ')}\n  seconds from results to next round: ${L.gaps.join(', ')}`);
+  for (const L of LOBBIES) console.log(`Class ${L.name} (${L.cards} cards): made the target per round ${L.rounds.map(r => `${r.solved}/${r.players} (${r.target})`).join(', ')}\n  seconds from results to next round: ${L.gaps.join(', ')}`);
   { const wasted = LOBBIES.flatMap(L => L.sims).reduce((n, x) => n + (x.cardOnlyStates || 0), 0);
     ok(wasted === 0, `all classes: no full game updates were sent just because someone's cards moved (${wasted})`); }
   { const all = LOBBIES.flatMap(L => L.sims), rounds = ROUNDS;

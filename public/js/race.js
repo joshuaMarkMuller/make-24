@@ -44,6 +44,11 @@ function showScreen(name){
   if(name==='board'||(name==='lobbyPanel'&&R.warm))requestAnimationFrame(fitBoard);
 }
 function setMsg(t,cls){const m=$('msg');m.textContent=t;m.className=cls||''}
+// This round's target (24, 36 or 48), shown above the cards and under the 3-2-1
+const TGT=()=>R.target||24;
+function showTarget(){
+  document.querySelectorAll('.target-num').forEach(b=>{if(b.textContent!==String(TGT())){b.textContent=TGT();b.parentElement.classList.remove('pop');void b.offsetWidth;b.parentElement.classList.add('pop')}});
+}
 function esc(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 const ordinal=n=>n+(['th','st','nd','rd'][(n%100-20)%10]||['th','st','nd','rd'][n%100]||'th');
 const listNames=a=>a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
@@ -146,20 +151,22 @@ socket.on('progress',d=>{
   renderOpps(g.members.filter(id=>id!==R.myId).map(id=>s.players.find(q=>q.id===id)).filter(Boolean),s,g);
 });
 socket.on('notice',t=>{R.notice=t;R.noticeAt=Date.now();render()});
-socket.on('state',s=>{R.state=s;R.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;R.stealAt=s.stealMsLeft!=null?performance.now()+s.stealMsLeft:0;catchUp();render()});
+socket.on('state',s=>{R.state=s;if(s.phase!=='lobby'&&s.target){R.target=s.target;showTarget()}   // in the waiting room the warm-up picks its own
+  R.nextAt=s.nextInMs!=null?performance.now()+s.nextInMs:0;R.stealAt=s.stealMsLeft!=null?performance.now()+s.stealMsLeft:0;catchUp();render()});
 // The host changed my name in the waiting room
 socket.on('renamed',name=>{R.me=name;$('youPanel').textContent=`You: ${R.emoji||''} ${name}`;R.notice=`The host changed your name to ${name}.`;R.noticeAt=Date.now();render()});
 socket.on('round',r=>{
   // My cards for this round (each pair has its own); suits are just for looks
   stopWarm();
   R.nums=r.nums;R.suits=r.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);R.boardRound=r.round;R.pendingSubmit=null;
+  if(r.target){R.target=r.target;showTarget()}
   clearTimeout(R.wrongTimer);R.wrongIdx=null;clearTimeout(R.heartTimer);$('heartLoss').hidden=true;
   resetBoard();R.locked=true;hide('resultDlg');$('stealNote').hidden=true;$('stealBox').hidden=true;stopCascade();clearOpps();clearInterval(R.nextTick);SFX.stop('cascade');
   R.deadline=performance.now()+r.countdownMs+r.limitMs;R.limitMs=r.limitMs;R.practice=false;
   if(!R.me)return;
   showScreen('countdown');
   let n=3;                                   // 3, 2, 1, spread over the countdown
-  const cd=$('countdown');cd.textContent=n;
+  const cd=$('cdNum');cd.textContent=n;
   const iv=setInterval(()=>{
     n--;
     if(n>0){cd.textContent=n;return}
@@ -247,11 +254,11 @@ function render(){
   }
   stopWarm();
 
-  // I made 24: show my points straight away, then wait for everyone else
+  // I made the target: show my points straight away, then wait for everyone else
   if(s.phase==='playing'&&me.solved&&R.solvedRound!==s.round){
     R.solvedRound=s.round;R.locked=true;R.sel=null;R.op=null;renderCards();
     const first=myGroup&&myGroup.winnerId===R.myId;
-    setMsg(first?'You made 24 first!':'You made 24!','good');
+    setMsg(first?`You made ${TGT()} first!`:`You made ${TGT()}!`,'good');
     R.celebratedRound=s.round;runCascade(null);
     showSolved(s,me,first);
   }
@@ -267,9 +274,9 @@ function render(){
     if(isElim(s)&&me.beaten){
       // Elimination: the race is over for me. Stop the board and break a heart in the middle of the screen.
       clearTimeout(R.wrongTimer);R.wrongIdx=null;R.locked=true;R.sel=null;R.op=null;renderCards();
-      setMsg(`${w?w.name:'Your opponent'} made 24 first`,'bad');
+      setMsg(`${w?w.name:'Your opponent'} made ${TGT()} first`,'bad');
       heartLoss(s,me,w);
-    }else setMsg(`${w?w.name:'Your opponent'} made 24 first. Keep going!`,'bad');
+    }else setMsg(`${w?w.name:'Your opponent'} made ${TGT()} first. Keep going!`,'bad');
   }
   if(s.phase==='playing'&&me.gaveUp)setMsg('You gave up','bad');
 
@@ -311,12 +318,12 @@ socket.on('stolen',d=>{
   if(st&&(st.phase==='result'||st.phase==='final')&&R.shownResultRound===st.round)renderScoreRows(st,false,d.from,d.amount,'STOLEN!');
 });
 
-// I made 24 while others are still racing: the cascade plays and the scoreboard shows on top
+// I made the target while others are still racing: the cascade plays and the scoreboard shows on top
 function showSolved(s,me,first){
   const last=R.slots.find(Boolean);
   $('resIcon').textContent=first?'★':'✓';$('resIcon').classList.remove('warn');
-  $('resTitle').textContent=first?'You won your race!':'You made 24!';
-  $('resExpr').textContent=last?`${last.e} = 24`:'';
+  $('resTitle').textContent=first?'You won your race!':`You made ${TGT()}!`;
+  $('resExpr').textContent=last?`${last.e} = ${TGT()}`:'';
   $('resSub').textContent=`+${me.gained} points${first?` (including +${s.firstBonus} for finishing first)`:''}.`;
   clearInterval(R.nextTick);$('againNote').textContent='Waiting for the others to finish…';
   R.liveRound=s.round;R.liveSig=s.players.map(p=>p.id+':'+p.points+':'+p.bonks+':'+p.lives).join();
@@ -333,21 +340,21 @@ function showResult(res,s){
   if(!mine){
     title=`Round ${s.matchRound} results`;icon='i';
     const meOut=s.players.find(p=>p.id===R.myId),practised=isElim(s)&&meOut&&meOut.out;
-    expr=practised&&res.practiceSolution?`${res.practiceSolution} = 24`:'';   // an answer to the practice cards
+    expr=practised&&res.practiceSolution?`${res.practiceSolution} = ${TGT()}`:'';   // an answer to the practice cards
     sub=practised?'You’re out. Watch for the last one standing, and keep practising on new cards each round.':'You’ll race from the next round.';
   }else if(solve){
-    title=won?'You won your race!':'You made 24!';
+    title=won?'You won your race!':`You made ${TGT()}!`;
     icon=won?'★':'✓';
-    expr=`${solve.expr} = 24`;
-    sub=`You made 24 in ${solve.time.toFixed(1)} seconds: +${solve.points} points${won?` (including +${s.firstBonus} for finishing first)`:''}.`;
+    expr=`${solve.expr} = ${TGT()}`;
+    sub=`You made ${TGT()} in ${solve.time.toFixed(1)} seconds: +${solve.points} points${won?` (including +${s.firstBonus} for finishing first)`:''}.`;
     if(!won&&mine.winner)sub+=` ${mine.winner} was first.`;
-    setMsg(won?'You made 24 first!':'You made 24!','good');
+    setMsg(won?`You made ${TGT()} first!`:`You made ${TGT()}!`,'good');
   }else{
     const me=s.players.find(p=>p.id===R.myId);
     const timedOut=res.reason==='time'&&me&&!me.gaveUp;
     if(timedOut)outOfTime();      // in case my clock hadn't quite reached zero
-    title=timedOut?'Out of time!':'You didn’t make 24 this round';icon=timedOut?'⏱':'i';
-    expr=mine.solution?`${mine.solution} = 24`:'';   // an answer to my own group's cards
+    title=timedOut?'Out of time!':`You didn’t make ${TGT()} this round`;icon=timedOut?'⏱':'i';
+    expr=mine.solution?`${mine.solution} = ${TGT()}`:'';   // an answer to my own group's cards
     sub=(mine.winner?`${mine.winner} won your race. `:'')+'No points this round. Here is one answer.';
     if(!timedOut&&!(isElim(s)&&me&&me.beaten))setMsg(res.reason==='host'?'Game ended':'Time’s up!','bad');
   }
@@ -358,7 +365,7 @@ function showResult(res,s){
     if(meNow.out&&meNow.outRound===s.matchRound){title='You’re out!';icon='✕'}
     if(won)sub=`You won your race and keep your lives: ${hearts(s,meNow)}.`;
     else if(res.reason==='host')sub='The host ended the game, so nobody lost a life this round.';
-    else sub=(solve?`${mine.winner} was first, so you lose a life. `:mine.winner?`${mine.winner} won your race, so you lose a life. `:'Nobody in your group made 24, so you each lose a life. ')+
+    else sub=(solve?`${mine.winner} was first, so you lose a life. `:mine.winner?`${mine.winner} won your race, so you lose a life. `:`Nobody in your group made ${TGT()}, so you each lose a life. `)+
       (meNow.out?'That was your last life.':`Lives left: ${hearts(s,meNow)}.`);
     if(res.wipeout)sub+=' Everyone left would have been knocked out at once, so they all stay in on one life.';
   }
@@ -377,7 +384,7 @@ function showResult(res,s){
   $('resIcon').textContent=icon;$('resIcon').classList.toggle('warn',icon==='!');
   $('resTitle').textContent=title;$('resExpr').textContent=expr;$('resSub').textContent=sub;
 
-  // If the scoreboard is already up (I made 24 earlier), update it in place instead of regrowing the bars
+  // If the scoreboard is already up (I made the target earlier), update it in place instead of regrowing the bars
   const already=R.liveRound===s.round;R.liveRound=null;
   renderScoreRows(s,!already);
 
@@ -542,10 +549,10 @@ function clickCard(i){
   if(left===1)R.sel=null;
   sendProgress({move:{a:from,b:i}});
   if(left===1){
-    if(v===24&&R.warm)warmWin();
-    else if(v===24&&R.practice){
-      R.locked=true;R.sel=null;setMsg('You made 24! (practice)','good');runCascade(null);
-    }else if(v===24){
+    if(v===TGT()&&R.warm)warmWin();
+    else if(v===TGT()&&R.practice){
+      R.locked=true;R.sel=null;setMsg(`You made ${TGT()}! (practice)`,'good');runCascade(null);
+    }else if(v===TGT()){
       R.locked=true;R.sel=null;setMsg('Checking…');
       submitMoves(R.moves.map(m=>({...m})));
     }else wrongAnswer(i,v);
@@ -560,16 +567,16 @@ function submitMoves(moves){
   socket.emit('submit',moves,elapsed,res=>{
     if(!R.pendingSubmit||R.pendingSubmit.round!==round)return;
     R.pendingSubmit=null;
-    if(!res.ok&&!/already made 24/.test(res.error))setMsg(res.error,'bad');
+    if(!res.ok&&!/already made/.test(res.error))setMsg(res.error,'bad');
   });
 }
-// Down to one card but it isn't 24: the card shakes red and fades, then the cards
+// Down to one card but it isn't the target: the card shakes red and fades, then the cards
 // deal back in so the player can try again straight away (no score lost).
 const WRONG_MS=900;
 function wrongAnswer(i,v){
   const round=R.state&&R.state.round,warmSeq=R.warm?R.warmSeq:0;
   R.locked=true;R.sel=null;R.op=null;R.wrongIdx=i;
-  setMsg(`That’s ${fmtText(v)}, not 24`,'bad');
+  setMsg(`That’s ${fmtText(v)}, not ${TGT()}`,'bad');
   clearTimeout(R.wrongTimer);
   R.wrongTimer=setTimeout(()=>{
     R.wrongIdx=null;
@@ -640,7 +647,7 @@ function renderOpp(o,opp,s,group){
   o.el.classList.toggle('gave-up',!!opp.gaveUp);
   const oppWon=!!opp.solved;
   const first=!!group&&group.winnerId===opp.id;
-  o.el.querySelector('.opp-status').innerHTML=oppWon?(first?'Made 24 first!':'Made 24!'):opp.gaveUp?'Gave up':
+  o.el.querySelector('.opp-status').innerHTML=oppWon?(first?`Made ${TGT()} first!`:`Made ${TGT()}!`):opp.gaveUp?'Gave up':
     (s.phase==='playing'?'Thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span>':'');
   const layout=(opp.layout||o.layout).map(Boolean);
   if(o.seq!==opp.moveSeq){
@@ -675,7 +682,7 @@ function applySel(o,opp,oppWon,layout){
 /* ---------- Warm-up: cards to play in the waiting room ----------
  * While waiting for the host, the same cards, buttons and keys as a race sit to the right of the
  * waiting room (underneath on phones), using the host's card and difficulty settings.
- * There's no time limit and no score, and nothing is sent to the server. Making 24 deals a different set; Give Up shows one
+ * There's no time limit and no score, and nothing is sent to the server. Making the target deals a different set; Give Up shows one
  * answer and deals a different set. The warm-up stops as soon as the match starts.
  */
 const WARM_WIN_MS=1200,WARM_ANSWER_MS=3000;
@@ -691,16 +698,17 @@ function warmDeal(n){
   clearTimeout(R.warmTimer);clearTimeout(R.wrongTimer);R.wrongIdx=null;
   const p=makePuzzle(n||R.warmCount||4,R.warmDiff||'easy');
   R.warmCount=p.nums.length;R.warmSeq=(R.warmSeq||0)+1;R.warmSol=p.sols[0]?p.sols[0].e:'';
+  R.target=p.target;showTarget();   // warm-up cards get their own random target too
   R.nums=p.nums;R.suits=p.nums.map(()=>SUITS[Math.floor(Math.random()*4)]);
   resetBoard();R.locked=false;
   renderCards('deal');requestAnimationFrame(fitBoard);
 }
 function warmWin(){
-  R.locked=true;R.sel=null;R.op=null;setMsg('You made 24!','good');
+  R.locked=true;R.sel=null;R.op=null;setMsg(`You made ${TGT()}!`,'good');
   clearTimeout(R.warmTimer);R.warmTimer=setTimeout(()=>{if(R.warm){warmDeal();setMsg('New cards')}},WARM_WIN_MS);
 }
 function warmGiveUp(){
-  R.op=null;setMsg(R.warmSol?`${R.warmSol} = 24`:'New cards');renderCards();
+  R.op=null;setMsg(R.warmSol?`${R.warmSol} = ${TGT()}`:'New cards');renderCards();
   clearTimeout(R.warmTimer);R.warmTimer=setTimeout(()=>{if(R.warm){warmDeal();setMsg('New cards')}},WARM_ANSWER_MS);
 }
 function stopWarm(){
@@ -714,7 +722,7 @@ function startTimer(){stopTimer();const t=$('timer');
   const f=()=>{
     const left=Math.max(0,Math.ceil((R.deadline-performance.now())/1000));
     t.textContent='Time left: '+left;t.classList.toggle('warn',left<=10);
-    if(left===0&&canPlay())outOfTime();      // time's up and I haven't made 24
+    if(left===0&&canPlay())outOfTime();      // time's up and I haven't made the target
   };f();R.tick=setInterval(f,250)}
 
 /* ---------- Out of time: grey out the cards and say so ---------- */
