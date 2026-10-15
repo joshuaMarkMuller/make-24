@@ -590,6 +590,16 @@ select{font:14px var(--ui);padding:3px 4px;border:1px solid #7f9db9;background:#
 @keyframes netSpin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.net-banner::before{animation:none}}
 
+/* Join screen: open lobbies and how many have joined */
+.lobby-status{margin:10px 0 2px;padding:6px 8px;background:#fff;border:1px solid #7f9db9;font-size:13px;color:#555}
+.lobby-status.none{font-style:italic;background:#f4f3ee}
+.lobby-status .ls-head{font-weight:bold;color:#222;margin-bottom:4px}
+.lobby-status .ls-row{display:flex;align-items:center;gap:8px;width:100%;padding:4px 6px;margin:2px 0;border:1px solid transparent;border-radius:3px;
+  background:none;font:14px var(--ui);color:#222;text-align:left;cursor:pointer}
+.lobby-status .ls-row:hover{background:#eef3fc;border-color:#c5d5ef}
+.lobby-status .ls-row.on{background:#dfe9fb;border-color:#7f9db9}
+.lobby-status .ls-row b{font-family:"Courier New",monospace;letter-spacing:.15em}
+.lobby-status .ls-dot{width:9px;height:9px;border-radius:50%;background:#2e8b2e;box-shadow:0 0 0 2px #c9ecc9;flex:none}
 /* Join screen: button for teachers to open the host screen (a link styled like the Join button) */
 .host-link{margin-top:10px}
 a.xp-btn{display:inline-block;text-decoration:none;color:inherit;text-align:center;box-sizing:border-box}

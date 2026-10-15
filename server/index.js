@@ -56,8 +56,25 @@ setInterval(() => {
   }
 }, 60 * 1000).unref();
 
+// Home page: which lobbies are open and how many players have joined each.
+// Screens on the join form watch the 'home' room and get a fresh list whenever it changes.
+const openLobbies = () => [...rooms.values()].map(r => r.summary()).filter(l => l.open)
+  .map(({ code, players, max }) => ({ code, players, max }));
+let lastLobbies = '[]';
+setInterval(() => {
+  const list = openLobbies(), sig = JSON.stringify(list);
+  if (sig !== lastLobbies) { lastLobbies = sig; io.to('home').emit('lobbies', list); }
+}, 1000).unref();
+
 io.on('connection', socket => {
   const inLobby = () => !!socket.data.code;
+
+  // Join form: start getting the list of open lobbies
+  socket.on('watchLobbies', reply => {
+    if (inLobby()) return;
+    socket.join('home');
+    if (typeof reply === 'function') reply(openLobbies());
+  });
 
   // Host screen: start a new lobby
   socket.on('createLobby', reply => {
@@ -67,6 +84,7 @@ io.on('connection', socket => {
     const code = newCode();
     const room = createRoom(io, code, { joinUrls: JOIN_URLS });
     rooms.set(code, room);
+    socket.leave('home');
     room.claimHost(socket);
     reply({ ok: true, code, key: room.hostKey });
   });
@@ -90,7 +108,9 @@ io.on('connection', socket => {
     if (c.length !== CODE_LEN) return reply({ ok: false, error: `Lobby codes have ${CODE_LEN} letters and numbers.` });
     const room = rooms.get(c);
     if (!room) return reply({ ok: false, error: `No lobby with the code ${c}. Check the code on the host's screen.` });
-    reply(room.addPlayer(socket, name, emoji, token));
+    const res = room.addPlayer(socket, name, emoji, token);
+    if (res.ok) socket.leave('home');
+    reply(res);
   });
 });
 

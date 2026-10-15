@@ -83,7 +83,8 @@ $('emojiGrid').onclick=e=>{e.stopPropagation();const b=e.target.closest('.emoji-
 $('emojiGrid').onkeydown=e=>{e.stopPropagation();if(e.key==='Escape'){openGrid(false);$('emojiBtn').focus()}};
 document.addEventListener('click',()=>{if(!$('emojiGrid').hidden)openGrid(false)});
 {let saved=null;try{saved=sessionStorage.getItem('make24-emoji')}catch{}setEmoji(EMOJIS.some(x=>x[0]===saved)?saved:randomEmoji())}
-$('codeInput').oninput=()=>{const c=cleanCode($('codeInput').value);if($('codeInput').value!==c)$('codeInput').value=c};
+$('codeInput').oninput=()=>{const c=cleanCode($('codeInput').value);if($('codeInput').value!==c)$('codeInput').value=c;
+  $('lobbyStatus').querySelectorAll('.ls-row').forEach(x=>x.classList.toggle('on',x.dataset.code===c))};
 // A private token for this tab (never shown). If the connection drops, or the page is reloaded,
 // the server uses it to give the player their own seat back, with their score or lives.
 // It's kept per tab, so several tabs in one browser are separate players (handy for testing).
@@ -95,7 +96,8 @@ function join(code,name,emoji,auto){
     if(!res||!res.ok){
       R.joined=null;R.me=null;R.offline=false;try{sessionStorage.removeItem('make24-auto')}catch{}
       stopWarm();netBanner(false);showScreen('joinPanel');hide('resultDlg');stopCascade();stopTimer();
-      $('joinMsg').textContent=(auto?'Couldn’t rejoin: ':'')+(res?res.error:'Something went wrong. Try again.');return}
+      $('joinMsg').textContent=(auto?'Couldn’t rejoin: ':'')+(res?res.error:'Something went wrong. Try again.');
+      if(auto)socket.emit('watchLobbies',showLobbies);return}
     $('joinMsg').textContent='';
     R.joined={code:res.code,name:res.name,emoji:res.emoji};R.offline=false;
     R.me=res.name;R.emoji=res.emoji;R.myId=res.id;R.code=res.code;$('youPanel').textContent=`You: ${R.emoji} ${R.me}`;
@@ -118,6 +120,20 @@ $('joinForm').onsubmit=e=>{
   $('joinMsg').textContent='Joining…';
   join(code,name,$('emojiInput').value,false);
 };
+// Open lobbies (host screen open, match not started) and how many have joined, kept up to date by the server.
+// Tapping one fills in its code.
+function showLobbies(list){
+  if(!Array.isArray(list))return;
+  const box=$('lobbyStatus');
+  if(!list.length){box.className='lobby-status none';box.textContent='No lobby is open yet. Wait for the host to start one.';return}
+  if(list.length===1&&!$('codeInput').value)$('codeInput').value=list[0].code;
+  box.className='lobby-status';
+  box.innerHTML=`<div class="ls-head">${list.length===1?'1 lobby is open':`${list.length} lobbies are open`}</div>`+
+    list.map(l=>`<button type="button" class="ls-row${l.code===cleanCode($('codeInput').value)?' on':''}" data-code="${esc(l.code)}"><span class="ls-dot"></span><b>${esc(l.code)}</b><span>${l.players} ${l.players===1?'player':'players'} joined${l.players>=l.max?' (full)':''}</span></button>`).join('');
+}
+$('lobbyStatus').onclick=e=>{const b=e.target.closest('.ls-row');if(!b)return;$('codeInput').value=b.dataset.code;
+  $('lobbyStatus').querySelectorAll('.ls-row').forEach(x=>x.classList.toggle('on',x===b));$('nameInput').focus()};
+socket.on('lobbies',showLobbies);
 // Reloaded the page while in a game: go straight back in
 try{if(sessionStorage.getItem('make24-auto')==='1'&&cleanCode($('codeInput').value).length===5&&$('nameInput').value)
   R.joined={code:cleanCode($('codeInput').value),name:$('nameInput').value,emoji:$('emojiInput').value}}catch{}
@@ -128,6 +144,7 @@ try{if(sessionStorage.getItem('make24-auto')==='1'&&cleanCode($('codeInput').val
 socket.on('connect',()=>{
   $('status').textContent='Connected';
   if(R.joined){netBanner(true,'Rejoining…');join(R.joined.code,R.joined.name,R.joined.emoji,true)}
+  else socket.emit('watchLobbies',showLobbies);
 });
 // Connection dropped (Wi-Fi blip, phone locked…): keep everything on screen and rejoin automatically.
 // The cards are paused until we're back, so no moves get lost on the way.

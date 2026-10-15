@@ -694,6 +694,8 @@ function createRoom(io, code, { joinUrls = [] } = {}) {
     code,
     get hostKey() { return game.hostKey; },
     claimHost, hostIsConnected, addPlayer,
+    // For the home page: is this lobby taking players (host screen open, match not started) and how many have joined
+    summary: () => ({ code, open: game.phase === 'lobby' && hostIsConnected(), players: game.players.size, max: MAX_PLAYERS }),
     // A lobby can be cleared away once nobody is in it and nothing has happened for a while
     isAbandoned: idleMs => !hostIsConnected() && game.players.size === 0 && Date.now() - game.lastActive > idleMs,
     touch: () => { game.lastActive = Date.now(); },
